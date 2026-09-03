@@ -1,5 +1,6 @@
 import { getDb, getUserId } from "@/lib/supabase/server";
 import { requireExtensionToken } from "@/lib/extension-auth";
+import { completeSessionIfDone } from "@/lib/unlock-sessions";
 
 export const dynamic = "force-dynamic";
 
@@ -67,47 +68,8 @@ export async function POST(request: Request) {
     return Response.json({ error: statusError.message }, { status: 500 });
   }
 
-  if (!posting.session_id) {
-    return Response.json({ ok: true, job_posting_id: jobPostingId, session: null });
-  }
+  // Shared with the /queue server action so both paths clear the lock.
+  const session = await completeSessionIfDone(db, jobPostingId);
 
-  const { data: session, error: sessionError } = await db
-    .from("unlock_sessions")
-    .select("id, required_count, status")
-    .eq("id", posting.session_id)
-    .maybeSingle();
-  if (sessionError || !session) {
-    // The application write already succeeded — don't fail the request over
-    // a session lookup issue, just report no session info back.
-    return Response.json({ ok: true, job_posting_id: jobPostingId, session: null });
-  }
-
-  const { count: appliedCount, error: countError } = await db
-    .from("applications")
-    .select("id, job_postings!inner(session_id)", { count: "exact", head: true })
-    .eq("job_postings.session_id", session.id);
-  if (countError) {
-    return Response.json({ ok: true, job_posting_id: jobPostingId, session: null });
-  }
-
-  const applied = appliedCount ?? 0;
-  let status = session.status;
-  if (applied >= session.required_count && status !== "completed") {
-    const { error: completeError } = await db
-      .from("unlock_sessions")
-      .update({ status: "completed", completed_at: new Date().toISOString() })
-      .eq("id", session.id);
-    if (!completeError) status = "completed";
-  }
-
-  return Response.json({
-    ok: true,
-    job_posting_id: jobPostingId,
-    session: {
-      id: session.id,
-      required_count: session.required_count,
-      applied_count: applied,
-      status,
-    },
-  });
+  return Response.json({ ok: true, job_posting_id: jobPostingId, session });
 }

@@ -35,6 +35,13 @@ export interface ExtensionConfig {
   snooze_minutes: number;
   tab_cap_per_hour: number;
   default_anime_mode: boolean;
+  /**
+   * How many applications one episode costs (1-5). Read from the website on
+   * demand and never persisted extension-side — the website is the source of
+   * truth, and a cached copy here would go stale the moment /settings changes
+   * it. See the popup's difficulty control.
+   */
+  episode_required_count: number;
 }
 
 export interface TokenStatus {
@@ -64,7 +71,9 @@ export type BackgroundRequest =
   | { type: "SAVE_TOKEN"; token: string }
   | { type: "CHECK_TOKEN" }
   | { type: "GET_QUOTE" }
-  | { type: "GET_MY_JOB_POSTING_ID" };
+  | { type: "GET_MY_JOB_POSTING_ID" }
+  | { type: "GET_CONFIG" }
+  | { type: "SET_EPISODE_REQUIRED_COUNT"; count: number };
 
 export interface BackgroundResponseMap {
   TRIGGER_EPISODE_END:
@@ -79,6 +88,10 @@ export interface BackgroundResponseMap {
   CHECK_TOKEN: TokenStatus;
   GET_QUOTE: { quote: string; author: string | null };
   GET_MY_JOB_POSTING_ID: { jobPostingId: string | null };
+  GET_CONFIG: { ok: true; config: ExtensionConfig } | { ok: false; error: string };
+  SET_EPISODE_REQUIRED_COUNT:
+    | { ok: true; config: ExtensionConfig }
+    | { ok: false; error: string };
 }
 
 // ---------------------------------------------------------------------------

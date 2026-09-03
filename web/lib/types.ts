@@ -56,6 +56,7 @@ export interface Settings {
   default_anime_mode: boolean;
   near_end_threshold_seconds: number;
   snooze_minutes: number;
+  episode_required_count: number;
   updated_at: string;
 }
 

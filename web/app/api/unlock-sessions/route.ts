@@ -1,21 +1,35 @@
 import { getDb, getUserId } from "@/lib/supabase/server";
 import { requireExtensionToken } from "@/lib/extension-auth";
-import { getSettings } from "@/lib/settings";
+import { clampEpisodeRequiredCount, getSettings } from "@/lib/settings";
+import { ISEKAI_BONUS_COUNT } from "@/lib/unlock-sessions";
 import { buildSearchFallbackTabs } from "@/lib/search-fallback";
 
-// Phase 2: required_count is always 5. The isekai lookup that can bump this
-// to 10 is explicitly Phase 6 work (generic site detection + AniList), not
-// this phase.
-const REQUIRED_COUNT = 5;
 const ACTIVE_STATUSES = ["locked", "snoozed"];
+
+/**
+ * Whether the episode that just ended was isekai, which costs
+ * ISEKAI_BONUS_COUNT extra applications.
+ *
+ * Hardcoded false for now: the AniList genre lookup that answers this is
+ * Phase 6 work (it needs the show title, which needs generic per-site title
+ * detection). Kept as a value on the request path rather than an inlined
+ * `false` so Phase 6 only has to supply the flag here.
+ */
+const isekaiEpisode: boolean = false;
 
 export const dynamic = "force-dynamic";
 
 /**
  * Called by the extension when an episode ends (manual button or the
  * flixcloud.cc auto-detect bonus). Creates an unlock_sessions row, hands out
- * up to REQUIRED_COUNT saved postings (marking them queued + tagged to this
- * session), and backfills any shortfall with live job-search tabs.
+ * up to that session's required_count in saved postings (marking them queued
+ * + tagged to this session), and backfills any shortfall with live
+ * job-search tabs.
+ *
+ * required_count comes from settings.episode_required_count (1-5) plus the
+ * isekai bonus, and is written onto the session row as a snapshot — editing
+ * the setting later must not move the goalposts on an already-open lock, so
+ * every reader takes the count off the session, never off settings.
  *
  * Rate-limited by settings.tab_cap_per_hour so a binge night can't stack
  * sessions — a trigger over the cap gets back the currently active session
@@ -28,6 +42,9 @@ export async function POST(request: Request) {
   const db = await getDb();
   const userId = await getUserId();
   const settings = await getSettings(db, userId);
+  const requiredCount =
+    clampEpisodeRequiredCount(settings.episode_required_count) +
+    (isekaiEpisode ? ISEKAI_BONUS_COUNT : 0);
 
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { count: recentCount, error: countError } = await db
@@ -61,7 +78,7 @@ export async function POST(request: Request) {
 
   const { data: session, error: sessionError } = await db
     .from("unlock_sessions")
-    .insert({ user_id: userId, required_count: REQUIRED_COUNT, status: "locked" })
+    .insert({ user_id: userId, required_count: requiredCount, status: "locked" })
     .select("id, required_count, status, created_at")
     .single();
   if (sessionError || !session) {
@@ -77,7 +94,7 @@ export async function POST(request: Request) {
     .eq("user_id", userId)
     .eq("status", "new")
     .order("created_at", { ascending: true })
-    .limit(REQUIRED_COUNT);
+    .limit(requiredCount);
   if (postingsError) {
     return Response.json({ error: postingsError.message }, { status: 500 });
   }
@@ -96,7 +113,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const shortfall = REQUIRED_COUNT - claimed.length;
+  const shortfall = requiredCount - claimed.length;
   const fallbackTabs =
     shortfall > 0
       ? buildSearchFallbackTabs(shortfall, settings.target_roles, settings.target_locations)

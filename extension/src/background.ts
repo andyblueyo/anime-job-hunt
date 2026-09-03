@@ -10,6 +10,7 @@ import {
   getUnlockSession,
   markApplied,
   snoozeUnlockSession,
+  updateEpisodeRequiredCount,
 } from "./lib/api-client";
 import type {
   BackgroundRequest,
@@ -233,6 +234,37 @@ async function handleMarkApplied(
   }
 }
 
+/**
+ * Reads the live config on demand. Nothing caches the result — the website
+ * owns episode_required_count, and a copy in chrome.storage would go stale
+ * the moment /settings changed it.
+ */
+async function handleGetConfig(): Promise<BackgroundResponseMap["GET_CONFIG"]> {
+  const token = await requireToken();
+  if (!token) return { ok: false, error: "No API token configured." };
+
+  try {
+    return { ok: true, config: await getExtensionConfig(token) };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function handleSetEpisodeRequiredCount(
+  count: number,
+): Promise<BackgroundResponseMap["SET_EPISODE_REQUIRED_COUNT"]> {
+  const token = await requireToken();
+  if (!token) return { ok: false, error: "No API token configured." };
+
+  try {
+    // The response is the config as stored, so the popup re-renders from the
+    // server's answer rather than assuming the write took the value it sent.
+    return { ok: true, config: await updateEpisodeRequiredCount(token, count) };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 async function handleSaveToken(token: string): Promise<TokenStatus> {
   await setToken(token);
   return handleCheckToken();
@@ -281,6 +313,10 @@ async function handleMessage(
       return handleCheckToken();
     case "GET_QUOTE":
       return getQuote();
+    case "GET_CONFIG":
+      return handleGetConfig();
+    case "SET_EPISODE_REQUIRED_COUNT":
+      return handleSetEpisodeRequiredCount(message.count);
     case "GET_MY_JOB_POSTING_ID": {
       const tabId = sender.tab?.id;
       const jobPostingId = tabId !== undefined ? await getJobPostingForTab(tabId) : null;

@@ -82,3 +82,14 @@ export function markApplied(token: string, jobPostingId: string): Promise<MarkAp
 export function getExtensionConfig(token: string): Promise<ExtensionConfig> {
   return request(token, "/api/extension-config");
 }
+
+/** Returns the config as it landed server-side, not as it was requested. */
+export function updateEpisodeRequiredCount(
+  token: string,
+  count: number,
+): Promise<ExtensionConfig> {
+  return request(token, "/api/extension-config", {
+    method: "PATCH",
+    body: JSON.stringify({ episode_required_count: count }),
+  });
+}

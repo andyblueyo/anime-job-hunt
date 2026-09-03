@@ -2,6 +2,13 @@
 
 import { refresh } from "next/cache";
 import { getDb, getUserId } from "@/lib/supabase/server";
+import { completeSessionIfDone } from "@/lib/unlock-sessions";
+import {
+  EPISODE_REQUIRED_COUNT_MAX,
+  EPISODE_REQUIRED_COUNT_MIN,
+  isValidEpisodeRequiredCount,
+  setEpisodeRequiredCount,
+} from "@/lib/settings";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -94,7 +101,44 @@ export async function markApplied(formData: FormData): Promise<void> {
     .eq("id", id);
   if (error) throw new Error(error.message);
 
+  // If this posting was handed out by an active lock, applying to it here
+  // has to be able to clear that lock too — not just the extension's own
+  // "Mark Applied" button (POST /api/mark-applied calls the same helper).
+  await completeSessionIfDone(db, id);
+
   refresh();
+}
+
+/**
+ * Set how many applications one episode costs (1-5). Shares its upsert with
+ * the extension's PATCH /api/extension-config, and validates the range rather
+ * than clamping it — a value outside 1-5 here means a tampered form post, not
+ * a stale DB row.
+ *
+ * Only affects sessions created from now on: unlock_sessions.required_count is
+ * snapshotted at creation, so an already-open lock keeps its original target.
+ */
+export async function setEpisodeCount(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const count = Number(trimmed(formData, "episode_required_count"));
+  if (!isValidEpisodeRequiredCount(count)) {
+    return {
+      ok: false,
+      error: `Pick a whole number from ${EPISODE_REQUIRED_COUNT_MIN} to ${EPISODE_REQUIRED_COUNT_MAX}.`,
+    };
+  }
+
+  const [db, userId] = await Promise.all([getDb(), getUserId()]);
+  try {
+    await setEpisodeRequiredCount(db, userId, count);
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+
+  refresh();
+  return { ok: true };
 }
 
 // Deliberately not exported: every export of a "use server" file becomes a

@@ -1,0 +1,173 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* Base: deep violet, going near-black at the edges. */
+  --color-void: oklch(0.14 0.05 300);
+  --color-void-deep: oklch(0.09 0.035 300);
+
+  /* Two primary accents (~#ff3d94 and ~#7c5cff) plus a teal for success. */
+  --color-magenta: oklch(0.66 0.24 354);
+  --color-violet: oklch(0.58 0.21 288);
+  --color-teal: oklch(0.8 0.13 195);
+
+  /* Text. */
+  --color-glow: oklch(0.96 0.015 300);
+  --color-haze: oklch(0.72 0.03 300);
+  --color-dim: oklch(0.55 0.03 300);
+
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-pixel: var(--font-press-start), "Courier New", monospace;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-void);
+  /* Accent glows, fixed to the viewport so scrolling doesn't drag them. */
+  background-image:
+    radial-gradient(70ch 55ch at 12% -10%, oklch(0.42 0.19 330 / 0.5), transparent 70%),
+    radial-gradient(60ch 50ch at 92% 8%, oklch(0.38 0.2 285 / 0.45), transparent 70%),
+    linear-gradient(180deg, transparent, var(--color-void-deep) 85%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  color: var(--color-glow);
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+}
+
+/* Small HUD-style label. Pixel font is deliberately confined to these. */
+.eyebrow {
+  font-family: var(--font-pixel);
+  font-size: 0.5625rem;
+  line-height: 1.6;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-haze);
+}
+
+.card {
+  border-radius: 1.25rem;
+  border: 1px solid oklch(1 0 0 / 0.1);
+  background: oklch(0.22 0.055 300 / 0.55);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 1px 0 oklch(1 0 0 / 0.06) inset;
+}
+
+/* Pill buttons ------------------------------------------------------------ */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    filter 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.pill:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.pill:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.pill-primary {
+  background-image: linear-gradient(135deg, var(--color-magenta), var(--color-violet));
+  color: oklch(0.99 0 0);
+  box-shadow: 0 6px 24px oklch(0.66 0.24 354 / 0.3);
+}
+
+.pill-primary:not(:disabled):hover {
+  filter: brightness(1.1);
+}
+
+.pill-ghost {
+  background-color: oklch(1 0 0 / 0.07);
+  border-color: oklch(1 0 0 / 0.14);
+  color: var(--color-glow);
+}
+
+.pill-ghost:not(:disabled):hover {
+  background-color: oklch(1 0 0 / 0.13);
+}
+
+.pill-teal {
+  background-color: oklch(0.8 0.13 195 / 0.16);
+  border-color: oklch(0.8 0.13 195 / 0.45);
+  color: var(--color-teal);
+}
+
+.pill-teal:not(:disabled):hover {
+  background-color: oklch(0.8 0.13 195 / 0.26);
+}
+
+.pill-sm {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+/* Status badge ----------------------------------------------------------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  padding: 0.3rem 0.55rem 0.22rem;
+  font-family: var(--font-pixel);
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Inputs ----------------------------------------------------------------- */
+
+.field {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid oklch(1 0 0 / 0.14);
+  background-color: oklch(0.16 0.04 300 / 0.75);
+  padding: 0.55rem 0.8rem;
+  font-size: 0.875rem;
+  color: var(--color-glow);
+}
+
+.field::placeholder {
+  color: var(--color-dim);
+}
+
+.field:focus {
+  outline: 2px solid oklch(0.58 0.21 288 / 0.7);
+  outline-offset: 1px;
+}
+
+/* Links ------------------------------------------------------------------ */
+
+a.underline-hover:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--color-magenta);
+  text-underline-offset: 3px;
+}
+
+/* Brand mark — the eyebrow style, but at full brightness. */
+.brand {
+  font-family: var(--font-pixel);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  color: var(--color-glow);
+  text-transform: uppercase;
+}

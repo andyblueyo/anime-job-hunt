@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Next Ep. Lock — Options</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --color-void: oklch(0.14 0.05 300);
+        --color-void-deep: oklch(0.09 0.035 300);
+        --color-magenta: oklch(0.66 0.24 354);
+        --color-violet: oklch(0.58 0.21 288);
+        --color-teal: oklch(0.8 0.13 195);
+        --color-glow: oklch(0.96 0.015 300);
+        --color-haze: oklch(0.72 0.03 300);
+        --color-dim: oklch(0.55 0.03 300);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        max-width: 480px;
+        margin: 40px auto;
+        padding: 0 20px;
+        background: var(--color-void);
+        background-image: linear-gradient(180deg, transparent, var(--color-void-deep) 85%);
+        color: var(--color-glow);
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      h1 {
+        font-family: "Courier New", monospace;
+        font-size: 15px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      h1 .accent {
+        color: var(--color-magenta);
+      }
+
+      p.hint {
+        color: var(--color-haze);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .card {
+        border-radius: 14px;
+        border: 1px solid oklch(1 0 0 / 0.1);
+        background: oklch(0.22 0.055 300 / 0.55);
+        padding: 18px 20px;
+        margin: 18px 0;
+      }
+
+      label {
+        display: block;
+        font-size: 12px;
+        color: var(--color-haze);
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid oklch(1 0 0 / 0.14);
+        background-color: oklch(0.16 0.04 300 / 0.75);
+        padding: 9px 12px;
+        font-size: 14px;
+        color: var(--color-glow);
+        font-family: monospace;
+      }
+
+      button {
+        border: none;
+        border-radius: 999px;
+        padding: 9px 18px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        color: oklch(0.99 0 0);
+        background-image: linear-gradient(135deg, var(--color-magenta), var(--color-violet));
+        margin-top: 12px;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .status {
+        margin-top: 10px;
+        font-size: 13px;
+      }
+
+      .status[data-state="ok"] {
+        color: var(--color-teal);
+      }
+
+      .status[data-state="error"] {
+        color: var(--color-magenta);
+      }
+
+      dl {
+        font-size: 12px;
+        color: var(--color-haze);
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 4px 12px;
+        margin: 10px 0 0;
+      }
+
+      dt {
+        color: var(--color-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Next<span class="accent">.</span>Ep<span class="accent">.</span>Lock — Options</h1>
+    <p class="hint">
+      Phase 2 MVP, hardcoded to reanime.to. Paste the token from your website's
+      <code>/settings</code> page below to connect this extension to your account.
+    </p>
+
+    <div class="card">
+      <label for="token-input">API token</label>
+      <input
+        id="token-input"
+        type="password"
+        placeholder="Paste the token from /settings"
+        autocomplete="off"
+      />
+      <button id="save-button" type="button">Save &amp; test</button>
+      <p id="status" class="status"></p>
+      <dl id="config-details" hidden>
+        <dt>Snooze length</dt>
+        <dd id="config-snooze"></dd>
+        <dt>Near-end threshold</dt>
+        <dd id="config-threshold"></dd>
+        <dt>Trigger cap</dt>
+        <dd id="config-cap"></dd>
+      </dl>
+    </div>
+
+    <p class="hint">
+      Built against <code id="web-app-origin"></code>. To point at a different deployment,
+      rebuild the extension with a different <code>WEB_APP_ORIGIN</code> — see
+      <code>extension/README.md</code>.
+    </p>
+
+    <script src="options.js"></script>
+  </body>
+</html>

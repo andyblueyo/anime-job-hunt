@@ -80,6 +80,13 @@ async function getSession(): Promise<Session> {
 
 /** A Supabase client scoped to `anime_jobs` and authenticated as the app user. */
 export async function getDb() {
+  return getDbImpl();
+}
+
+/** The `anime_jobs`-scoped client type, for helpers that take `getDb()`'s result as a parameter. */
+export type Db = Awaited<ReturnType<typeof getDb>>;
+
+async function getDbImpl() {
   const { accessToken } = await getSession();
 
   return createClient(

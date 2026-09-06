@@ -1,5 +1,6 @@
 import { getDb, getUserId } from "@/lib/supabase/server";
 import { requireExtensionToken } from "@/lib/extension-auth";
+import { countSessionApplications, countSessionOutstanding } from "@/lib/unlock-sessions";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,10 @@ export const dynamic = "force-dynamic";
  * originally called for — see the Phase 2 plan for why: Realtime needs a
  * real Supabase JWT, and the extension only carries a static app token this
  * phase.
+ *
+ * `outstanding_count` (postings still queued to this session) is what lets
+ * the overlay decide whether to offer "Open replacements": when
+ * applied + outstanding < required, nothing left open can complete the lock.
  */
 export async function GET(
   request: Request,
@@ -34,16 +39,20 @@ export async function GET(
     return Response.json({ error: "Unlock session not found." }, { status: 404 });
   }
 
-  const { count: appliedCount, error: countError } = await db
-    .from("applications")
-    .select("id, job_postings!inner(session_id)", { count: "exact", head: true })
-    .eq("job_postings.session_id", id);
-  if (countError) {
-    return Response.json({ error: countError.message }, { status: 500 });
+  try {
+    const [appliedCount, outstandingCount] = await Promise.all([
+      countSessionApplications(db, id),
+      countSessionOutstanding(db, id),
+    ]);
+    return Response.json({
+      ...session,
+      applied_count: appliedCount,
+      outstanding_count: outstandingCount,
+    });
+  } catch (error) {
+    return Response.json(
+      { error: error instanceof Error ? error.message : String(error) },
+      { status: 500 },
+    );
   }
-
-  return Response.json({
-    ...session,
-    applied_count: appliedCount ?? 0,
-  });
 }

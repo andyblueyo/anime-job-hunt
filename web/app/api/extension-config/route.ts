@@ -20,24 +20,40 @@ function configResponse(settings: UserSettings) {
     tab_cap_per_hour: settings.tab_cap_per_hour,
     default_anime_mode: settings.default_anime_mode,
     episode_required_count: clampEpisodeRequiredCount(settings.episode_required_count),
+    close_prompt_min_seconds: settings.close_prompt_min_seconds,
   });
+}
+
+function errorResponse(error: unknown, status = 500) {
+  return Response.json(
+    { error: error instanceof Error ? error.message : String(error) },
+    { status },
+  );
 }
 
 /**
  * Lets the extension read tunable values from `settings` instead of
  * hardcoding them, so near_end_threshold_seconds / snooze_minutes /
- * tab_cap_per_hour / episode_required_count stay owned by the DB. Also
- * doubles as the options page's "is this token valid" check.
+ * tab_cap_per_hour / episode_required_count / close_prompt_min_seconds stay
+ * owned by the DB. Also doubles as the options page's "is this token valid"
+ * check.
+ *
+ * Wrapped in try/catch so a failure here (most likely: a settings column the
+ * select names that hasn't been migrated onto the live DB yet) reaches the
+ * extension as `{ error }` with the Postgres message, not a bodiless Next 500
+ * that surfaces as a bare "Request failed: 500".
  */
 export async function GET(request: Request) {
   const authError = requireExtensionToken(request);
   if (authError) return authError;
 
-  const db = await getDb();
-  const userId = await getUserId();
-  const settings = await getSettings(db, userId);
-
-  return configResponse(settings);
+  try {
+    const db = await getDb();
+    const userId = await getUserId();
+    return configResponse(await getSettings(db, userId));
+  } catch (error) {
+    return errorResponse(error);
+  }
 }
 
 /**
@@ -70,19 +86,14 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const db = await getDb();
-  const userId = await getUserId();
-
   try {
+    const db = await getDb();
+    const userId = await getUserId();
     await setEpisodeRequiredCount(db, userId, count);
+    // Read back rather than echoing the request, so the caller renders from
+    // what actually landed.
+    return configResponse(await getSettings(db, userId));
   } catch (error) {
-    return Response.json(
-      { error: error instanceof Error ? error.message : String(error) },
-      { status: 500 },
-    );
+    return errorResponse(error);
   }
-
-  // Read back rather than echoing the request, so the caller renders from
-  // what actually landed.
-  return configResponse(await getSettings(db, userId));
 }

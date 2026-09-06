@@ -69,9 +69,10 @@ export default async function SettingsPage() {
           title="How much does one episode cost?"
         />
         <p className="mb-4 max-w-2xl text-sm text-haze">
-          Applications you owe before the lock lifts. Changing this only affects the{" "}
-          <em>next</em> episode — a lock that&apos;s already open keeps the target it was
-          created with.
+          The most applications one episode can cost. If your queue has fewer postings
+          than this when an episode ends, the lock asks for what&apos;s there instead — an
+          empty queue costs nothing. Changing this only affects the <em>next</em> episode —
+          a lock that&apos;s already open keeps the target it was created with.
         </p>
         {episodeCount !== null ? (
           <EpisodeCountControl current={episodeCount} />

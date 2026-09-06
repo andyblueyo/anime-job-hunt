@@ -9,11 +9,17 @@ export interface UserSettings {
   near_end_threshold_seconds: number;
   snooze_minutes: number;
   episode_required_count: number;
+  /**
+   * Seconds a handed-out job tab must have been open before closing it
+   * without a ribbon decision prompts "did you apply?" on the lock overlay.
+   */
+  close_prompt_min_seconds: number;
 }
 
 /**
  * Mirrors the column defaults in migrations/ (the create-tables migration,
- * plus 20260903_add_episode_required_count.sql). Nothing inserts a
+ * plus 20260903_add_episode_required_count.sql and
+ * 20260905_add_close_prompt_settings.sql). Nothing inserts a
  * `settings` row automatically — it only exists once someone (a future
  * settings-editing UI, or a manual insert) writes one — so every reader falls
  * back to these rather than assuming the row is there.
@@ -27,14 +33,27 @@ export const DEFAULT_SETTINGS: UserSettings = {
   near_end_threshold_seconds: 10,
   snooze_minutes: 10,
   episode_required_count: 5,
+  close_prompt_min_seconds: 90,
 };
+
+// Every column in UserSettings, in one place: an unapplied migration for any
+// name here makes this select 500 on every extension-facing route.
+const SETTINGS_COLUMNS = [
+  "target_roles",
+  "target_locations",
+  "excluded_companies",
+  "tab_cap_per_hour",
+  "default_anime_mode",
+  "near_end_threshold_seconds",
+  "snooze_minutes",
+  "episode_required_count",
+  "close_prompt_min_seconds",
+].join(", ");
 
 export async function getSettings(db: Db, userId: string): Promise<UserSettings> {
   const { data, error } = await db
     .from("settings")
-    .select(
-      "target_roles, target_locations, excluded_companies, tab_cap_per_hour, default_anime_mode, near_end_threshold_seconds, snooze_minutes, episode_required_count",
-    )
+    .select(SETTINGS_COLUMNS)
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -43,7 +62,10 @@ export async function getSettings(db: Db, userId: string): Promise<UserSettings>
 }
 
 // ---------------------------------------------------------------------------
-// episode_required_count — how many applications one episode costs
+// episode_required_count — the most applications one episode can cost.
+// A ceiling, not a floor: unlock_sessions.required_count is
+// min(this [+ isekai bonus], postings claimable at creation) — see
+// POST /api/unlock-sessions.
 // ---------------------------------------------------------------------------
 
 export const EPISODE_REQUIRED_COUNT_MIN = 1;

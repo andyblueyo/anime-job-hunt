@@ -18,6 +18,8 @@ export interface JobPosting {
   source: PostingSource;
   source_board: string | null;
   session_id: string | null;
+  /** Most recent unlock session this posting was skipped from (extension Skip). */
+  skipped_from_session_id: string | null;
   posted_date: string | null;
   salary_range: string | null;
   status: PostingStatus;
@@ -43,6 +45,7 @@ export interface UnlockSession {
   required_count: number;
   status: SessionStatus;
   snooze_until: string | null;
+  snooze_count: number;
   created_at: string;
   completed_at: string | null;
 }
@@ -57,6 +60,7 @@ export interface Settings {
   near_end_threshold_seconds: number;
   snooze_minutes: number;
   episode_required_count: number;
+  close_prompt_min_seconds: number;
   updated_at: string;
 }
 

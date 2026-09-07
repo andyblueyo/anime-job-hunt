@@ -69,6 +69,9 @@ export async function POST(request: Request) {
   }
 
   // Shared with the /queue server action so both paths clear the lock.
+  // `session` is null when the posting's session had already completed before
+  // this call: the extension broadcasts LOCK_CLEARED for any completed session
+  // it gets back, so reporting a stale one would clear the CURRENT lock.
   const session = await completeSessionIfDone(db, jobPostingId);
 
   return Response.json({ ok: true, job_posting_id: jobPostingId, session });

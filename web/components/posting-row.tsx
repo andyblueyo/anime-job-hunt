@@ -27,7 +27,14 @@ function ActionForm({
   );
 }
 
-export function PostingRow({ posting }: { posting: JobPostingWithApplication }) {
+export function PostingRow({
+  posting,
+  meetsSalary = false,
+}: {
+  posting: JobPostingWithApplication;
+  /** The stated range reaches the salary floor from Settings — a badge, never a filter. */
+  meetsSalary?: boolean;
+}) {
   const application = posting.applications;
   const open = posting.status === "new" || posting.status === "queued";
 
@@ -43,6 +50,11 @@ export function PostingRow({ posting }: { posting: JobPostingWithApplication }) 
       <div className="min-w-0">
         <div className="flex items-center gap-2.5">
           <StatusBadge status={posting.status} />
+          {meetsSalary ? (
+            <span className="badge" style={{ color: "var(--color-teal)" }} title="Stated salary meets your floor">
+              ≥ salary floor
+            </span>
+          ) : null}
           <p className="truncate text-sm font-bold text-haze">{posting.company}</p>
         </div>
 

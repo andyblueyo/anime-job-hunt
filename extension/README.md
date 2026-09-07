@@ -15,7 +15,8 @@ src/
   content/
     lock-overlay.ts       injected on reanime.to — the full-tab lock screen
     flixcloud-detect.ts   injected on flixcloud.cc — the auto-detect bonus
-    mark-applied.ts       injected on demand into opened job-posting tabs
+    mark-applied.ts       injected on demand into opened job-posting tabs —
+                           the top capture ribbon (Mark applied / Skip / Undo)
   lib/
     messages.ts           typed chrome.runtime message contracts
     api-client.ts          fetch wrapper for web/app/api/*
@@ -76,6 +77,57 @@ script changes (the popup/options pages just need to be reopened).
   static bearer token isn't a real Supabase session, so it can't open a
   Realtime channel this phase. See the Phase 2 plan for the reasoning.
 
+## Application capture (Phase 4)
+
+Each opened job tab gets a full-width **ribbon** pinned to the top of the
+viewport (it overlays the page rather than pushing it down — pushing breaks
+on sites with their own fixed header). It names the posting and its position
+in the batch, and offers **Mark applied** / **Skip**. Skip returns the posting
+to `status = 'new'` with `session_id` cleared so a later episode can hand it
+out again.
+
+Both decisions are **deferred 5s with Undo**. The timer lives in the
+background script, not the tab — closing the tab right after clicking (which
+is what people do) still commits the decision. Pending decisions are also
+persisted so a service-worker restart re-arms them.
+
+Closing a tracked tab **without deciding**, after it's been open at least
+`settings.close_prompt_min_seconds` (default 90), queues a "You closed N
+tabs" card on the lock overlay with **I applied** / **I didn't** per posting.
+Tabs closed sooner than that are dropped silently; tabs already answered on
+the ribbon never prompt.
+
+If declining leaves the session with fewer outstanding postings than it still
+needs, the overlay shows **Open replacements**, which claims fresh postings
+via `POST /api/unlock-sessions/:id/replacements` (not counted against
+`tab_cap_per_hour`, since it doesn't create a session).
+
+Needs `migrations/20260905_add_close_prompt_settings.sql` applied — every
+route that reads `settings` selects the new column, and until it exists
+`GET /api/extension-config` answers `{"error":"column settings.close_prompt_min_seconds does not exist"}`.
+
+## Visual system (halftone restyle)
+
+Tokens, keyframes, and the dot-field technique live in `src/lib/theme.ts`
+and are shared by the lock overlay (injected into its shadow root) and the
+popup (injected into `<head>`). Fonts are bundled from `fonts/` — VCR OSD
+Mono for every mono label, Archivo Black for the headline, Archivo for body
+and the quote — and referenced through `chrome.runtime.getURL()`, which is
+why `manifest.template.json` lists `fonts/*.ttf` under
+`web_accessible_resources`. The `@font-face` block goes in the host page's
+`<head>`, not the shadow root: Chrome ignores `@font-face` inside a shadow
+tree.
+
+VCR OSD Mono is a single weight with no `·`, `—`, `–`, `×`, `≥`, or `@`
+glyph. Anything set in it uses `•` as the separator, `-` for dashes, `x` for
+"times", and whole-pixel sizes. Its license is free for personal use, which
+covers this project as it stands. A public store release (Phase 7) is not
+personal use — re-check the license or swap the face before shipping one.
+
+Values with no backend yet (`src/lib/placeholder-data.ts`) render with a
+small mono `DEMO` tag via `data-demo`; stub handlers are no-ops that
+`console.debug`.
+
 ## Manual verification checklist
 
 - [ ] `npm run typecheck` and `npm run build` both succeed
@@ -92,3 +144,19 @@ script changes (the popup/options pages just need to be reopened).
       immediately, without a fresh trigger
 - [ ] Triggering more than `tab_cap_per_hour` times within an hour re-shows
       the existing lock instead of opening a fresh batch of tabs
+
+### Phase 4 — application capture
+
+- [ ] Ribbon appears at the top of every opened job tab; corner pill is gone
+- [ ] Ribbon names the correct posting when several tabs are open at once
+- [ ] Mark applied → overlay ticks up within one 5s poll
+- [ ] Undo within 5s → no `applications` row is written
+- [ ] Skip → posting is back at `status = 'new'` with `session_id` null, and
+      appears in a later session's handout
+- [ ] Close a tab after 2 minutes with no decision → prompt appears on the
+      anime tab
+- [ ] Close a tab after 10 seconds → no prompt
+- [ ] Close a tab after deciding on the ribbon → no prompt
+- [ ] Decline every posting in a session → "Open replacements" appears and
+      opens fresh tabs
+- [ ] Session still completes normally after replacements are applied to

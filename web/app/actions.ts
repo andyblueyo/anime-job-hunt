@@ -6,9 +6,15 @@ import { completeSessionIfDone } from "@/lib/unlock-sessions";
 import {
   EPISODE_REQUIRED_COUNT_MAX,
   EPISODE_REQUIRED_COUNT_MIN,
+  isExperienceLevel,
+  isValidCurrency,
   isValidEpisodeRequiredCount,
+  parseList,
+  saveSearchPreferences as persistSearchPreferences,
   setEpisodeRequiredCount,
 } from "@/lib/settings";
+import { runScraper, type ScrapeSummary } from "@/lib/scraper/run";
+import { parsePostingUrl, type ParsePostingResult } from "@/lib/posting-parser";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -49,6 +55,11 @@ export async function addPosting(
     return { ok: false, error: "That URL doesn't look valid — include https://" };
   }
 
+  // Only the paste-a-link review step sends this (when the page had a
+  // datePosted). Anything that isn't a plain date is dropped, not rejected.
+  const postedDate = optional(formData, "posted_date");
+  const posted_date = postedDate && /^\d{4}-\d{2}-\d{2}$/.test(postedDate) ? postedDate : null;
+
   const [db, userId] = await Promise.all([getDb(), getUserId()]);
 
   const { error } = await db.from("job_postings").insert({
@@ -58,6 +69,7 @@ export async function addPosting(
     url: normalizedUrl,
     location: optional(formData, "location"),
     salary_range: optional(formData, "salary_range"),
+    posted_date,
     source: "manual",
     status: "new",
   });
@@ -71,6 +83,20 @@ export async function addPosting(
 
   refresh();
   return { ok: true };
+}
+
+/**
+ * Paste-a-link: fetch a job posting page server-side and pre-fill the Add
+ * Posting form from it. Reads only — saving is addPosting above, so the row a
+ * reviewed parse writes is the same row the hand-typed form writes. Every
+ * failure comes back as a result (URL kept, other fields blank, one-line
+ * message) rather than a throw: parsing is a convenience, never a gate.
+ */
+export async function parsePosting(
+  _prev: ParsePostingResult | null,
+  formData: FormData,
+): Promise<ParsePostingResult> {
+  return parsePostingUrl(trimmed(formData, "url"));
 }
 
 /**
@@ -175,5 +201,120 @@ export async function reopenPosting(formData: FormData): Promise<void> {
   if (deleteError) throw new Error(deleteError.message);
 
   await setPostingStatus(id, "new");
+  refresh();
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3: job-search preferences + scraper
+// ---------------------------------------------------------------------------
+
+/**
+ * The /settings preferences form. Lists come in as free text (commas or
+ * newlines); the level must be one of the known values; salary is optional.
+ * Empty target_roles is allowed but means generic API sources have nothing to
+ * search for — the form warns about that, this doesn't refuse it.
+ */
+export async function saveSearchPreferences(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const level = trimmed(formData, "experience_level");
+  if (!isExperienceLevel(level)) {
+    return { ok: false, error: "Pick an experience level from the list." };
+  }
+
+  const salaryText = trimmed(formData, "salary_min").replace(/[,\s]/g, "");
+  let salaryMin: number | null = null;
+  if (salaryText) {
+    const parsed = Number(salaryText);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      return { ok: false, error: "Salary floor must be a whole number (annual), or blank." };
+    }
+    salaryMin = parsed;
+  }
+
+  const currency = trimmed(formData, "salary_currency").toUpperCase() || "USD";
+  if (!isValidCurrency(currency)) {
+    return { ok: false, error: "Currency should be a 3-letter code like USD or GBP." };
+  }
+
+  const [db, userId] = await Promise.all([getDb(), getUserId()]);
+  try {
+    await persistSearchPreferences(db, userId, {
+      target_roles: parseList(trimmed(formData, "target_roles")),
+      target_locations: parseList(trimmed(formData, "target_locations")),
+      excluded_companies: parseList(trimmed(formData, "excluded_companies")),
+      experience_level: level,
+      salary_min: salaryMin,
+      salary_currency: currency,
+    });
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+
+  refresh();
+  return { ok: true };
+}
+
+export type ScrapeActionResult =
+  | { ok: true; summary: ScrapeSummary }
+  | { ok: false; error: string };
+
+/** "Run now" on /boards. Same code path as the cron route, same time budget. */
+export async function runScraperNow(
+  _prev: ScrapeActionResult | null,
+  formData: FormData,
+): Promise<ScrapeActionResult> {
+  const dryRun = trimmed(formData, "dry_run") === "1";
+  const [db, userId] = await Promise.all([getDb(), getUserId()]);
+  try {
+    const summary = await runScraper({ db, userId, dryRun, budgetMs: 50_000 });
+    refresh();
+    return { ok: true, summary };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
+ * "Add anyway" on a filtered-out posting: the filter was wrong about this
+ * one. Moves it from the rejection log into the queue as a normal scraped
+ * posting. RLS scopes the id to the caller's rows.
+ */
+export async function rescueRejection(formData: FormData): Promise<void> {
+  const id = trimmed(formData, "id");
+  if (!id) throw new Error("Missing rejection id");
+  const [db, userId] = await Promise.all([getDb(), getUserId()]);
+
+  const { data: rejection, error: readError } = await db
+    .from("scrape_rejections")
+    .select("id, url, title, company, location, salary_range, board_id, details")
+    .eq("id", id)
+    .maybeSingle();
+  if (readError) throw new Error(readError.message);
+  if (!rejection) return; // already handled
+
+  const postedAt = (rejection.details as Record<string, unknown> | null)?.posted_at;
+  const { error: insertError } = await db.from("job_postings").upsert(
+    {
+      user_id: userId,
+      company: rejection.company ?? "Unknown company",
+      title: rejection.title,
+      url: rejection.url,
+      location: rejection.location,
+      source: "scraped",
+      source_board: rejection.board_id,
+      posted_date: typeof postedAt === "string" ? postedAt.slice(0, 10) : null,
+      salary_range: rejection.salary_range,
+      status: "new",
+      scraped_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,url", ignoreDuplicates: true },
+  );
+  if (insertError) throw new Error(insertError.message);
+
+  const { error: deleteError } = await db.from("scrape_rejections").delete().eq("id", id);
+  if (deleteError) throw new Error(deleteError.message);
+
   refresh();
 }

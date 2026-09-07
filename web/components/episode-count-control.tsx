@@ -37,28 +37,23 @@ export function EpisodeCountControl({ current }: { current: number }) {
               value={n}
               aria-pressed={selected}
               disabled={pending}
-              className="flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 transition disabled:opacity-60"
+              className="flex flex-col items-center gap-1.5 border px-2 py-3 transition disabled:opacity-60"
               style={
                 selected
-                  ? {
-                      borderColor: "oklch(0.66 0.24 354 / 0.55)",
-                      backgroundImage:
-                        "linear-gradient(135deg, oklch(0.66 0.24 354 / 0.22), oklch(0.58 0.21 288 / 0.22))",
-                      boxShadow: "0 0 16px oklch(0.66 0.24 354 / 0.25)",
-                    }
-                  : {
-                      borderColor: "oklch(1 0 0 / 0.12)",
-                      backgroundColor: "oklch(1 0 0 / 0.03)",
-                    }
+                  ? { borderColor: "var(--ink)", backgroundColor: "var(--ink)" }
+                  : { borderColor: "var(--line)", backgroundColor: "transparent" }
               }
             >
               <span
-                className="text-2xl font-bold tabular-nums"
-                style={{ color: selected ? "var(--color-magenta)" : "var(--color-haze)" }}
+                className="mono text-2xl tabular-nums"
+                style={{ color: selected ? "var(--paper)" : "var(--ink)" }}
               >
                 {n}
               </span>
-              <span className="text-center text-[10px] leading-tight text-dim">
+              <span
+                className="text-center text-[10px] leading-tight"
+                style={{ color: selected ? "var(--muted-3)" : "var(--muted)" }}
+              >
                 {EPISODE_REQUIRED_COUNT_LABELS[n]}
               </span>
             </button>

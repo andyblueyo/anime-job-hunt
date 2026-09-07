@@ -47,13 +47,25 @@ failure modes apart:
 | --- | --- |
 | `app/page.tsx` | Dashboard — stat tiles, lock status, recent applications |
 | `app/queue/page.tsx` | Postings queue — status filters, manual add, row actions |
-| `app/actions.ts` | Server Actions for every mutation |
+| `app/actions.ts` | Server Actions for every mutation, plus `parsePosting` (read-only) |
+| `components/add-posting-form.tsx` | Paste-a-link → review → save flow on /queue |
+| `lib/posting-parser/` | Fetch hardening + HTML→fields for pasted job URLs; fixtures + tests alongside |
 | `lib/supabase/server.ts` | Authenticated, schema-scoped Supabase client |
 | `lib/types.ts` | Row types for `anime_jobs` (mirrors the migration) |
 | `app/globals.css` | The design system — colors, cards, pills, badges |
 
 Both pages are `force-dynamic`: they read live data on every request and must
 never be prerendered.
+
+## Tests
+
+```bash
+npm test          # vitest run — parser unit tests, no network
+```
+
+Fixtures under `lib/posting-parser/__fixtures__/` are saved real pages
+(Greenhouse, Lever) plus small synthetic ones; add a new fixture rather than
+a live fetch when a site parses wrong.
 
 ## Deploying
 

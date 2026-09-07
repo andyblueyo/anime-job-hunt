@@ -45,12 +45,24 @@ export async function countSessionOutstanding(db: Db, sessionId: string): Promis
 }
 
 /**
- * Read a session's progress by id, flipping it to `completed` if its count
- * has been met. Returns null when the session doesn't exist or a lookup
- * failed — callers use this after a write that has already committed, and a
- * progress report that couldn't be assembled shouldn't fail that write.
+ * Progress for a session that a write (an application, a skip) may just have
+ * moved — flipping it to `completed` if its count is now met.
+ *
+ * Returns null when the session was ALREADY completed before this call. That
+ * is the fix for a free unlock: the extension treats any `completed` session
+ * it's handed back as "the lock just cleared" and broadcasts LOCK_CLEARED to
+ * every anime tab. A posting from an older, finished session (say, answered
+ * through the closed-tab prompt an episode later) used to come back here as
+ * completed and knock down the CURRENT lock's overlay. Only a session this
+ * write actually completes is reported as completed; a stale one is nothing
+ * to report, and the routes return `session: null`, which the extension
+ * already treats as "no lock state changed".
+ *
+ * Also null when the session doesn't exist or a lookup failed — callers use
+ * this after a write that has already committed, and a progress report that
+ * couldn't be assembled shouldn't fail that write.
  */
-export async function getSessionProgress(
+export async function reportSessionProgress(
   db: Db,
   sessionId: string,
 ): Promise<SessionProgress | null> {
@@ -60,6 +72,7 @@ export async function getSessionProgress(
     .eq("id", sessionId)
     .maybeSingle();
   if (sessionError || !session) return null;
+  if (session.status === "completed") return null;
 
   let applied: number;
   let outstanding: number;
@@ -105,7 +118,9 @@ export async function getSessionProgress(
  * committed by the time this runs and shouldn't be reported as failed.
  *
  * Returns the session's progress for callers that report it back, or null
- * when there was no session to complete.
+ * when there was no session to complete — including a session that had
+ * already completed before this application (see reportSessionProgress for
+ * why that must not be reported).
  */
 export async function completeSessionIfDone(
   db: Db,
@@ -118,7 +133,7 @@ export async function completeSessionIfDone(
     .maybeSingle();
   if (postingError || !posting?.session_id) return null;
 
-  return getSessionProgress(db, posting.session_id);
+  return reportSessionProgress(db, posting.session_id);
 }
 
 // ---------------------------------------------------------------------------

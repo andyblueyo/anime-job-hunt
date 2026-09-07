@@ -1,173 +1,457 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens — the soft halftone system (design/Next_Ep_Lock_Soft_dc.html).
+ * Light paper surfaces, near-black ink, one chromatic color (crimson), 1px
+ * hairlines, no drop shadows. Defined once here; the extension carries the
+ * same values in extension/src/lib/theme.ts.
+ */
+:root {
+  --tone: 6px; /* halftone dot pitch */
+  --spot: #b3122b; /* crimson — the only chromatic color */
+  --line: rgba(26, 26, 24, 0.82); /* hairline border on light surfaces */
+  --line-soft: rgba(26, 26, 24, 0.34);
+  --line-faint: rgba(26, 26, 24, 0.12);
+  --ink: #1a1a18; /* near-black, never pure #000 */
+  --ink-2: #141412;
+  --paper: #f7f5ef; /* primary light surface */
+  --paper-2: #f2efe8; /* recessed panel */
+  --paper-3: #edeae2;
+  --shell: #e8e4db; /* page background behind panels */
+  --muted: #6b6760;
+  --muted-2: #9c988f; /* on dark: dimmed mono labels */
+  --muted-3: #b9b5ad;
+}
+
 @theme inline {
-  /* Base: deep violet, going near-black at the edges. */
-  --color-void: oklch(0.14 0.05 300);
-  --color-void-deep: oklch(0.09 0.035 300);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-paper-3: var(--paper-3);
+  --color-shell: var(--shell);
+  --color-spot: var(--spot);
+  --color-muted: var(--muted);
+  --color-muted-2: var(--muted-2);
+  --color-muted-3: var(--muted-3);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-line-faint: var(--line-faint);
 
-  /* Two primary accents (~#ff3d94 and ~#7c5cff) plus a teal for success. */
-  --color-magenta: oklch(0.66 0.24 354);
-  --color-violet: oklch(0.58 0.21 288);
-  --color-teal: oklch(0.8 0.13 195);
+  /* Legacy names from the dark theme, remapped so pages that haven't had
+     their own restyle pass yet (queue, settings, boards) stay legible. */
+  --color-magenta: var(--spot);
+  --color-violet: var(--ink);
+  --color-teal: var(--ink);
+  --color-glow: var(--ink);
+  --color-haze: var(--muted);
+  --color-dim: var(--muted-2);
+  --color-void: var(--shell);
+  --color-void-deep: var(--paper-3);
 
-  /* Text. */
-  --color-glow: oklch(0.96 0.015 300);
-  --color-haze: oklch(0.72 0.03 300);
-  --color-dim: oklch(0.55 0.03 300);
-
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-pixel: var(--font-press-start), "Courier New", monospace;
+  /* Fonts come from next/font/local in app/layout.tsx — bundled, never
+     fetched from Google at runtime. */
+  --font-sans: var(--font-archivo), Arial, Helvetica, sans-serif;
+  --font-display: var(--font-archivo-black), Impact, "Arial Black", sans-serif;
+  --font-mono: var(--font-vcr), ui-monospace, "Courier New", monospace;
+  /* Kept for any straggling reference; the pixel HUD font is now VCR. */
+  --font-pixel: var(--font-vcr), ui-monospace, "Courier New", monospace;
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
+  background: var(--shell);
 }
 
 body {
-  background-color: var(--color-void);
-  /* Accent glows, fixed to the viewport so scrolling doesn't drag them. */
-  background-image:
-    radial-gradient(70ch 55ch at 12% -10%, oklch(0.42 0.19 330 / 0.5), transparent 70%),
-    radial-gradient(60ch 50ch at 92% 8%, oklch(0.38 0.2 285 / 0.45), transparent 70%),
-    linear-gradient(180deg, transparent, var(--color-void-deep) 85%);
-  background-attachment: fixed;
-  background-repeat: no-repeat;
-  color: var(--color-glow);
+  background: var(--shell);
+  color: var(--ink);
   font-family: var(--font-sans);
   min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Small HUD-style label. Pixel font is deliberately confined to these. */
-.eyebrow {
-  font-family: var(--font-pixel);
-  font-size: 0.5625rem;
-  line-height: 1.6;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-haze);
+a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
 }
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Mono utility: VCR OSD Mono is a single weight, so fake bold is disabled and
+   emphasis comes from spacing, size, or --spot. Whole-pixel sizes only. */
+.mono {
+  font-family: var(--font-mono);
+  font-synthesis: none;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 0.92;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+/* Small mono label above a section. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-synthesis: none;
+  font-weight: 400;
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Panels ------------------------------------------------------------------ */
 
 .card {
-  border-radius: 1.25rem;
-  border: 1px solid oklch(1 0 0 / 0.1);
-  background: oklch(0.22 0.055 300 / 0.55);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 1px 0 oklch(1 0 0 / 0.06) inset;
+  position: relative;
+  border: 1px solid var(--line);
+  background: var(--paper);
 }
 
-/* Pill buttons ------------------------------------------------------------ */
+.card-recessed {
+  background: var(--paper-2);
+}
+
+.card-dark {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* Halftone technique --------------------------------------------------------
+   Three stacked layers, no images. Every panel that wants blooms sets its
+   own --mask (comma-separated radial gradients with stepped alpha stops). */
+
+@keyframes twk {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(0.5) rotate(24deg);
+    opacity: 0.28;
+  }
+}
+
+@keyframes drift {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-1.6%, -2.2%, 0);
+  }
+}
+
+@keyframes bloom {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Layer 1: tone blooms. Light dots on dark panels; add .tone-dark for ink
+   dots on paper. */
+.tone {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, var(--dot, var(--paper)) 1.5px, transparent 1.9px);
+  background-size: var(--tone) var(--tone);
+  filter: blur(0.4px);
+  mask-image: var(--mask);
+  -webkit-mask-image: var(--mask);
+  animation: drift 30s ease-in-out infinite alternate;
+}
+
+.tone-dark {
+  --dot: var(--ink);
+  opacity: 0.3;
+  animation: none;
+}
+
+.wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 60% 70% at 26% 24%, rgba(247, 245, 239, 0.1), transparent 72%);
+  animation: bloom 10s ease-in-out infinite;
+}
+
+/* Layer 2: paper grain. */
+.grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, var(--ink) 0.5px, transparent 0.8px);
+  background-size: 3px 3px;
+  opacity: 0.09;
+}
+
+.grain-light {
+  background-image: radial-gradient(circle, var(--paper) 0.5px, transparent 0.8px);
+  opacity: 0.1;
+}
+
+/* Layer 3: sparkles. Corners and margins only — never over text. */
+.sparkle {
+  position: absolute;
+  pointer-events: none;
+  background: var(--paper);
+  clip-path: polygon(50% 0, 55% 45%, 100% 50%, 55% 55%, 50% 100%, 45% 55%, 0 50%, 45% 45%);
+  animation: twk 5s ease-in-out infinite;
+}
+
+.sparkle-5 {
+  clip-path: polygon(
+    50% 0%,
+    54.6% 35.7%,
+    55.9% 41.9%,
+    62.1% 41.2%,
+    97.6% 34.5%,
+    65% 50%,
+    59.5% 53.1%,
+    62.1% 58.8%,
+    79.4% 90.5%,
+    54.6% 64.3%,
+    50% 60%,
+    45.4% 64.3%,
+    20.6% 90.5%,
+    37.9% 58.8%,
+    40.5% 53.1%,
+    35% 50%,
+    2.4% 34.5%,
+    37.9% 41.2%,
+    44.1% 41.9%,
+    45.4% 35.7%
+  );
+}
+
+.sparkle-spot {
+  background: var(--spot);
+}
+
+/* Segmented progress row. Filled slots solid ink; the current slot carries
+   an inset --spot block on the blink keyframe. */
+.slots {
+  display: flex;
+  gap: 7px;
+}
+
+.slot {
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  height: 11px;
+  border: 1px solid var(--line);
+}
+
+.slot[data-on="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+}
+
+.slot[data-cur="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  background: var(--spot);
+  animation: blink 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tone,
+  .wash,
+  .sparkle,
+  .slot[data-cur="true"]::before {
+    animation: none !important;
+  }
+}
+
+/* Buttons (class names kept from the dark theme so every page still works;
+   the shapes are now square hairline blocks in mono caps) ------------------ */
 
 .pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  padding: 0.5rem 1.1rem;
-  font-size: 0.875rem;
-  font-weight: 700;
-  cursor: pointer;
+  gap: 0.5em;
+  font-family: var(--font-mono);
+  font-synthesis: none;
+  font-weight: 400;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 12px 20px;
   transition:
-    filter 0.15s ease,
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    transform 0.1s ease;
+    background-color 140ms ease,
+    opacity 140ms ease,
+    border-color 140ms ease;
 }
 
 .pill:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: progress;
 }
 
-.pill:not(:disabled):active {
-  transform: translateY(1px);
+.pill:not(:disabled):hover {
+  background: var(--shell);
 }
 
 .pill-primary {
-  background-image: linear-gradient(135deg, var(--color-magenta), var(--color-violet));
-  color: oklch(0.99 0 0);
-  box-shadow: 0 6px 24px oklch(0.66 0.24 354 / 0.3);
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
 }
 
 .pill-primary:not(:disabled):hover {
-  filter: brightness(1.1);
+  background: var(--ink);
+  opacity: 0.84;
 }
 
 .pill-ghost {
-  background-color: oklch(1 0 0 / 0.07);
-  border-color: oklch(1 0 0 / 0.14);
-  color: var(--color-glow);
-}
-
-.pill-ghost:not(:disabled):hover {
-  background-color: oklch(1 0 0 / 0.13);
+  background: var(--paper);
+  color: var(--ink);
 }
 
 .pill-teal {
-  background-color: oklch(0.8 0.13 195 / 0.16);
-  border-color: oklch(0.8 0.13 195 / 0.45);
-  color: var(--color-teal);
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
-.pill-teal:not(:disabled):hover {
-  background-color: oklch(0.8 0.13 195 / 0.26);
+.pill-spot {
+  border-color: var(--spot);
+  color: var(--spot);
+}
+
+.pill-spot:not(:disabled):hover {
+  background: var(--spot);
+  color: var(--paper);
 }
 
 .pill-sm {
-  padding: 0.3rem 0.75rem;
-  font-size: 0.8125rem;
+  font-size: 11px;
+  padding: 7px 12px;
 }
 
-/* Status badge ----------------------------------------------------------- */
+/* Status chip -------------------------------------------------------------- */
 
 .badge {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
-  border: 1px solid currentColor;
-  padding: 0.3rem 0.55rem 0.22rem;
-  font-family: var(--font-pixel);
-  font-size: 0.5rem;
-  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  font-synthesis: none;
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  border: 1px solid rgba(26, 26, 24, 0.5);
+  color: var(--ink);
+  padding: 3px 9px;
   white-space: nowrap;
 }
 
-/* Inputs ----------------------------------------------------------------- */
+.badge-spot {
+  border-color: var(--spot);
+  color: var(--spot);
+}
+
+.badge-muted {
+  border-color: var(--line-soft);
+  color: var(--muted);
+}
+
+/* Quiet mono tags. .demo-tag marks a value with no backend yet; .field-tag
+   marks a form field the paste-a-link parser filled in (vs. one left blank). */
+.demo-tag,
+.field-tag {
+  display: inline-block;
+  vertical-align: middle;
+  font-family: var(--font-mono);
+  font-synthesis: none;
+  font-weight: 400;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+/* Inputs ------------------------------------------------------------------- */
 
 .field {
   width: 100%;
-  border-radius: 0.75rem;
-  border: 1px solid oklch(1 0 0 / 0.14);
-  background-color: oklch(0.16 0.04 300 / 0.75);
-  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--line-soft);
+  background: var(--paper);
+  padding: 0.6rem 0.8rem;
   font-size: 0.875rem;
-  color: var(--color-glow);
+  color: var(--ink);
 }
 
 .field::placeholder {
-  color: var(--color-dim);
+  color: var(--muted-2);
 }
 
 .field:focus {
-  outline: 2px solid oklch(0.58 0.21 288 / 0.7);
-  outline-offset: 1px;
+  outline: 1px solid var(--ink);
+  outline-offset: 0;
+  border-color: var(--ink);
 }
 
-/* Links ------------------------------------------------------------------ */
+/* A field the parser filled: full-strength hairline instead of the soft one,
+   so parsed and blank read differently at a glance without a badge. */
+.field[data-parsed="true"] {
+  border-color: var(--line);
+}
+
+/* Links -------------------------------------------------------------------- */
 
 a.underline-hover:hover {
   text-decoration: underline;
-  text-decoration-color: var(--color-magenta);
+  text-decoration-color: var(--spot);
   text-underline-offset: 3px;
 }
 
-/* Brand mark — the eyebrow style, but at full brightness. */
+/* Brand mark: mono, lowercase, crimson dots. */
 .brand {
-  font-family: var(--font-pixel);
-  font-size: 0.6875rem;
-  letter-spacing: 0.06em;
-  color: var(--color-glow);
-  text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-synthesis: none;
+  font-weight: 400;
+  font-size: 16px;
+  letter-spacing: 0.1em;
+  text-transform: lowercase;
+  color: var(--paper);
+}
+
+code {
+  font-family: var(--font-mono);
+  font-synthesis: none;
+  font-size: 12px;
 }

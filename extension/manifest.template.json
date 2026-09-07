@@ -40,5 +40,11 @@
       "32": "icons/icon32.png"
     }
   },
-  "options_page": "options/options.html"
+  "options_page": "options/options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["fonts/*.ttf"],
+      "matches": ["https://reanime.to/*"]
+    }
+  ]
 }

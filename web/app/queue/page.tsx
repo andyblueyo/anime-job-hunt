@@ -2,7 +2,9 @@ import Link from "next/link";
 import { AddPostingForm } from "@/components/add-posting-form";
 import { PostingRow } from "@/components/posting-row";
 import { Card, EmptyState, ErrorNote, SectionHeading } from "@/components/ui";
-import { getDb } from "@/lib/supabase/server";
+import { getDb, getUserId } from "@/lib/supabase/server";
+import { meetsSalaryFloor, type SalaryFloor } from "@/lib/salary";
+import { getSettings } from "@/lib/settings";
 import {
   POSTING_STATUSES,
   isPostingStatus,
@@ -18,10 +20,12 @@ const PAGE_SIZE = 200;
 type Loaded = {
   postings: JobPostingWithApplication[];
   counts: Record<PostingStatus | "all", number>;
+  salaryFloor: SalaryFloor | null;
 };
 
 async function load(status: PostingStatus | null): Promise<Loaded> {
   const db = await getDb();
+  const userId = await getUserId();
 
   let query = db
     .from("job_postings")
@@ -31,9 +35,11 @@ async function load(status: PostingStatus | null): Promise<Loaded> {
 
   if (status) query = query.eq("status", status);
 
-  const [list, all] = await Promise.all([
+  const [list, all, settings] = await Promise.all([
     query.returns<JobPostingWithApplication[]>(),
     db.from("job_postings").select("status").returns<{ status: PostingStatus }[]>(),
+    // Settings failing (an unapplied migration) shouldn't take the queue down.
+    getSettings(db, userId).catch(() => null),
   ]);
 
   if (list.error) throw new Error(list.error.message);
@@ -43,7 +49,22 @@ async function load(status: PostingStatus | null): Promise<Loaded> {
   for (const s of POSTING_STATUSES) counts[s] = 0;
   for (const row of all.data) counts[row.status] += 1;
 
-  return { postings: list.data, counts };
+  const salaryFloor: SalaryFloor | null =
+    settings?.salary_min != null
+      ? { min: settings.salary_min, currency: settings.salary_currency }
+      : null;
+
+  // Salary is a preference, not a filter: it ranks. Postings that state a
+  // range meeting the floor float up; everything else keeps its date order.
+  const postings = salaryFloor
+    ? [...list.data].sort(
+        (a, b) =>
+          Number(meetsSalaryFloor(b.salary_range, salaryFloor)) -
+          Number(meetsSalaryFloor(a.salary_range, salaryFloor)),
+      )
+    : list.data;
+
+  return { postings, counts, salaryFloor };
 }
 
 export default async function QueuePage({ searchParams }: PageProps<"/queue">) {
@@ -73,7 +94,7 @@ export default async function QueuePage({ searchParams }: PageProps<"/queue">) {
       </header>
 
       <Card>
-        <SectionHeading eyebrow="Add by hand" />
+        <SectionHeading eyebrow="Add a posting" />
         <AddPostingForm />
       </Card>
 
@@ -109,7 +130,11 @@ export default async function QueuePage({ searchParams }: PageProps<"/queue">) {
         {loaded && loaded.postings.length > 0 ? (
           <ul className="space-y-3">
             {loaded.postings.map((posting) => (
-              <PostingRow key={posting.id} posting={posting} />
+              <PostingRow
+                key={posting.id}
+                posting={posting}
+                meetsSalary={meetsSalaryFloor(posting.salary_range, loaded.salaryFloor)}
+              />
             ))}
           </ul>
         ) : null}

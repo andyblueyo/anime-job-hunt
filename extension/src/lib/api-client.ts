@@ -3,7 +3,7 @@
 // popup/options UI never call this directly.
 
 import { WEB_APP_ORIGIN } from "./env";
-import type { ExtensionConfig, JobPosting, SessionState } from "./messages";
+import type { ExtensionConfig, JobPosting, SessionProgress, SessionState } from "./messages";
 
 export class ApiError extends Error {
   constructor(
@@ -66,14 +66,36 @@ export function snoozeUnlockSession(token: string, sessionId: string): Promise<S
   });
 }
 
-export interface MarkAppliedResult {
-  ok: true;
-  job_posting_id: string;
-  session: SessionState | null;
+/**
+ * Same response shape as createUnlockSession, minus a new session: the
+ * postings the session is still short, freshly claimed. See
+ * web/app/api/unlock-sessions/[id]/replacements/route.ts for why this exists.
+ */
+export function requestReplacements(
+  token: string,
+  sessionId: string,
+): Promise<CreateUnlockSessionResult> {
+  return request(token, `/api/unlock-sessions/${encodeURIComponent(sessionId)}/replacements`, {
+    method: "POST",
+  });
 }
 
-export function markApplied(token: string, jobPostingId: string): Promise<MarkAppliedResult> {
+export interface PostingDecisionResult {
+  ok: true;
+  job_posting_id: string;
+  session: SessionProgress | null;
+}
+
+export function markApplied(token: string, jobPostingId: string): Promise<PostingDecisionResult> {
   return request(token, "/api/mark-applied", {
+    method: "POST",
+    body: JSON.stringify({ job_posting_id: jobPostingId }),
+  });
+}
+
+/** Puts a handed-out posting back to `new`, detached from its session. */
+export function skipPosting(token: string, jobPostingId: string): Promise<PostingDecisionResult> {
+  return request(token, "/api/skip-posting", {
     method: "POST",
     body: JSON.stringify({ job_posting_id: jobPostingId }),
   });

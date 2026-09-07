@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&amp;family=Zen+Kaku+Gothic+New:wght@300;400;500;700;900&amp;display=swap" rel="stylesheet">
+<style>
+  @font-face { font-family: 'VCROSD'; src: url('fonts/VCROSDMono.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #E6E2D9; }
+  body { font-family: 'Zen Kaku Gothic New', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: #1A1A18; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+  a:hover { color: var(--spot, #B3122B); }
+  button { font: inherit; cursor: pointer; }
+  @keyframes tw { 0%,100% { transform: scale(1) rotate(0deg); opacity: 0.9; } 50% { transform: scale(0.5) rotate(24deg); opacity: 0.28; } }
+  @keyframes float { 0% { transform: translate3d(0,0,0); } 100% { transform: translate3d(-1.6%,-2.2%,0); } }
+  @keyframes bloom { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+</style>
+</helmet>
+
+<div style="--tone: 6px; --spot: #B3122B; --s4: polygon(50.0% 0.0%,54.3% 39.3%,53.9% 46.1%,60.7% 45.7%,100.0% 50.0%,60.7% 54.3%,53.9% 53.9%,54.3% 60.7%,50.0% 100.0%,45.7% 60.7%,46.1% 53.9%,39.3% 54.3%,0.0% 50.0%,39.3% 45.7%,46.1% 46.1%,45.7% 39.3%); --s5: polygon(50.0% 0.0%,54.6% 35.7%,55.9% 41.9%,62.1% 41.2%,97.6% 34.5%,65.0% 50.0%,59.5% 53.1%,62.1% 58.8%,79.4% 90.5%,54.6% 64.3%,50.0% 60.0%,45.4% 64.3%,20.6% 90.5%,37.9% 58.8%,40.5% 53.1%,35.0% 50.0%,2.4% 34.5%,37.9% 41.2%,44.1% 41.9%,45.4% 35.7%); --line: rgba(26,26,24,0.82); min-height: 100vh; background: #EFEBE3; padding: 20px 20px 72px; display: flex; flex-direction: column; gap: 20px; align-items: center; position: relative">
+
+  <div style="width:100%; max-width:1140px; display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px;">
+    <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:12px; letter-spacing:0.2em; text-transform:uppercase; color:#6B6760;">next.ep.lock — soft panel study</div>
+    <div style="display:flex; gap:6px; margin-left:auto;">
+      <button onClick="{{ goPopup }}" style="font-family:'VCROSD','DotGothic16',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; padding:7px 14px; border:1px solid var(--line); background:{{ tabPopupBg }}; color:{{ tabPopupFg }};">popup</button>
+      <button onClick="{{ goLock }}" style="font-family:'VCROSD','DotGothic16',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; padding:7px 14px; border:1px solid var(--line); background:{{ tabLockBg }}; color:{{ tabLockFg }};">episode lock</button>
+      <button onClick="{{ goDash }}" style="font-family:'VCROSD','DotGothic16',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; padding:7px 14px; border:1px solid var(--line); background:{{ tabDashBg }}; color:{{ tabDashFg }};">dashboard</button>
+    </div>
+  </div>
+
+  <sc-if value="{{ isPopup }}" hint-placeholder-val="{{ true }}">
+  <div data-screen-label="Popup" style="width:392px; max-width:100%; background:#F7F5EF; border:1px solid var(--line); position:relative; padding:11px; display:flex; flex-direction:column; gap:11px; overflow:hidden;">
+    <div style="position:absolute; inset:0; background-image:radial-gradient(circle,#1A1A18 0.5px,transparent 0.8px); background-size:3px 3px; opacity:0.09; pointer-events:none; z-index:4;"></div>
+
+    <div style="position:relative; border:1px solid var(--line); background:#1A1A18; padding:20px 18px 40px; overflow:hidden;">
+      <div style="position:absolute; inset:0; background-image:radial-gradient(circle,#F7F5EF 1.5px,transparent 1.9px); background-size:var(--tone) var(--tone); filter:blur(0.4px); mask-image:radial-gradient(circle 130px at 88% 150%,#000 0 12%,rgba(0,0,0,0.55) 46%,rgba(0,0,0,0.18) 72%,transparent 92%),radial-gradient(circle 88px at 62% 168%,#000 0 14%,rgba(0,0,0,0.5) 48%,transparent 88%),radial-gradient(circle 62px at 34% 176%,#000 0 16%,rgba(0,0,0,0.45) 50%,transparent 90%),radial-gradient(circle 54px at 112% 34%,#000 0 14%,rgba(0,0,0,0.4) 50%,transparent 90%); -webkit-mask-image:radial-gradient(circle 130px at 88% 150%,#000 0 12%,rgba(0,0,0,0.55) 46%,rgba(0,0,0,0.18) 72%,transparent 92%),radial-gradient(circle 88px at 62% 168%,#000 0 14%,rgba(0,0,0,0.5) 48%,transparent 88%),radial-gradient(circle 62px at 34% 176%,#000 0 16%,rgba(0,0,0,0.45) 50%,transparent 90%),radial-gradient(circle 54px at 112% 34%,#000 0 14%,rgba(0,0,0,0.4) 50%,transparent 90%); animation:float 30s ease-in-out infinite alternate;"></div>
+      <div style="position:absolute; inset:0; background:radial-gradient(ellipse 70% 60% at 30% 20%, rgba(247,245,239,0.09), transparent 70%); animation:bloom 9s ease-in-out infinite;"></div>
+      <div style="position:absolute; top:16px; right:26px; width:22px; height:22px; background:#F7F5EF; clip-path:var(--s4); transform:rotate(-8deg); animation:tw 4.4s ease-in-out infinite;"></div>
+      <div style="position:absolute; top:44px; right:58px; width:12px; height:12px; background:#F7F5EF; clip-path:var(--s4); animation:tw 5.8s ease-in-out infinite 1.2s;"></div>
+      <div style="position:relative; font-family:'VCROSD','DotGothic16',monospace; font-size:17px; letter-spacing:0.1em; color:#F7F5EF;">next<span style="color:var(--spot);">.</span>ep<span style="color:var(--spot);">.</span>lock</div>
+      <div style="position:relative; font-family:'Zen Kaku Gothic New',sans-serif; font-weight:300; font-size:12.5px; line-height:1.6; color:#B9B5AD; margin-top:6px; max-width:26ch;">The next episode stays shut until the count is met.</div>
+    </div>
+
+    <div style="position:relative; border:1px solid var(--line); background:#F2EFE8; padding:18px 18px 20px; overflow:hidden;">
+      <div style="position:absolute; inset:0; background-image:radial-gradient(circle,#1A1A18 1.4px,transparent 1.8px); background-size:var(--tone) var(--tone); opacity:0.34; filter:blur(0.4px); mask-image:radial-gradient(circle 120px at 104% 138%,#000 0 12%,rgba(0,0,0,0.5) 46%,transparent 88%),radial-gradient(circle 78px at 76% 152%,#000 0 14%,rgba(0,0,0,0.45) 48%,transparent 90%); -webkit-mask-image:radial-gradient(circle 120px at 104% 138%,#000 0 12%,rgba(0,0,0,0.5) 46%,transparent 88%),radial-gradient(circle 78px at 76% 152%,#000 0 14%,rgba(0,0,0,0.45) 48%,transparent 90%); pointer-events:none;"></div>
+      <div style="position:relative; display:flex; align-items:baseline; justify-content:space-between; gap:8px;">
+        <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:11.5px; letter-spacing:0.2em; text-transform:uppercase; color:#6B6760;">{{ lockLabel }}</div>
+        <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:11.5px; letter-spacing:0.16em; text-transform:uppercase; color:var(--spot);">{{ lockTag }}</div>
+      </div>
+      <div style="position:relative; display:flex; align-items:flex-end; gap:11px; margin-top:12px;">
+        <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:62px; line-height:0.78; color:#1A1A18;">{{ applied }}</div>
+        <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:26px; line-height:1; color:#9C988F; padding-bottom:5px;">/ {{ target }}</div>
+        <div style="font-family:'Zen Kaku Gothic New',sans-serif; font-weight:400; font-size:12.5px; line-height:1.5; color:#4A4740; padding-bottom:6px;">applications<br>until the next episode</div>
+      </div>
+      <div style="position:relative; display:flex; gap:7px; margin-top:18px;">
+        <sc-for list="{{ slots }}" as="s" hint-placeholder-count="5">
+          <div style="flex:1; height:9px; border:1px solid var(--line); position:relative; overflow:hidden;">
+            <sc-if value="{{ s.on }}"><div style="position:absolute; inset:0; background:#1A1A18;"></div></sc-if>
+            <sc-if value="{{ s.cur }}"><div style="position:absolute; inset:0; background-image:radial-gradient(circle,#1A1A18 1.3px,transparent 1.7px); background-size:4px 4px; animation:pulse 2.4s ease-in-out infinite;"></div></sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:7px;">
+      <button onClick="{{ logApp }}" style="width:100%; font-family:'VCROSD','DotGothic16',monospace; font-size:14px; letter-spacing:0.1em; text-transform:uppercase; padding:16px 12px; border:1px solid var(--line); background:#1A1A18; color:#F7F5EF; transition:opacity 140ms ease;" style-hover="opacity:0.84;">{{ primaryLabel }}</button>
+      <button onClick="{{ finishEp }}" style="width:100%; font-family:'VCROSD','DotGothic16',monospace; font-size:12px; letter-spacing:0.1em; text-transform:uppercase; padding:12px; border:1px solid var(--line); background:#F7F5EF; color:#1A1A18; transition:background 140ms ease;" style-hover="background:#E8E4DB;">i finished an episode</button>
+    </div>
+
+    <div style="border:1px solid var(--line); background:#F7F5EF; padding:15px 17px 17px;">
+      <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px;">
+        <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:11.5px; letter-spacing:0.18em; text-transform:uppercase; color:#6B6760;">jobs per episode</div>
+        <div style="font-family:'Zen Kaku Gothic New',sans-serif; font-weight:400; font-size:12px; color:#6B6760;">{{ targetName }}</div>
+      </div>
+      <div style="display:flex; gap:7px; margin-top:11px;">
+        <sc-for list="{{ targetOpts }}" as="t" hint-placeholder-count="5">
+          <button onClick="{{ t.pick }}" style="flex:1; font-family:'VCROSD','DotGothic16',monospace; font-size:17px; padding:11px 0; border:1px solid var(--line); background:{{ t.bg }}; color:{{ t.fg }};">{{ t.n }}</button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:14px; border:1px solid rgba(26,26,24,0.34); background:#F7F5EF; padding:13px 15px;">
+      <div style="flex:1; min-width:0;">
+        <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:11.5px; letter-spacing:0.16em; text-transform:uppercase; color:#6B6760;">auto-detect</div>
+        <div style="font-family:'Zen Kaku Gothic New',sans-serif; font-weight:300; font-size:12px; line-height:1.55; color:#6B6760; margin-top:4px;">Catches the episode ending on flixcloud.cc</div>
+      </div>
+      <button onClick="{{ toggleAuto }}" style="flex:none; width:46px; height:22px; border:1px solid var(--line); background:{{ autoTrackBg }}; padding:0; position:relative; display:block;">
+        <div style="position:absolute; top:2px; bottom:2px; width:18px; left:{{ autoKnobLeft }}; background:{{ autoKnobBg }}; transition:left 180ms ease;"></div>
+      </button>
+    </div>
+
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:2px 4px; font-family:'VCROSD','DotGothic16',monospace; font-size:11.5px; letter-spacing:0.12em; text-transform:uppercase;">
+      <a href="#options" style="color:#6B6760;">options</a>
+      <span style="font-family:'VCROSD','DotGothic16',monospace; color:#9C988F;">queue · 8 open</span>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isLock }}" hint-placeholder-val="{{ true }}">
+  <div data-screen-label="Episode lock" style="width:100%; max-width:1140px; border:1px solid var(--line); position:relative; min-height:460px; background:#141412; overflow:hidden; display:grid; grid-template-columns:minmax(0,1fr);">
+    <div style="grid-area:1/1; width:100%; aspect-ratio:16/9; pointer-events:none;"></div>
+
+    <div style="position:absolute; inset:0; background-image:radial-gradient(circle,#F7F5EF 1.7px,transparent 2.1px); background-size:var(--tone) var(--tone); filter:blur(0.5px); mask-image:radial-gradient(circle 260px at 2% 136%,#000 0 10%,rgba(0,0,0,0.55) 42%,rgba(0,0,0,0.2) 70%,transparent 92%),radial-gradient(circle 180px at 16% 148%,#000 0 12%,rgba(0,0,0,0.5) 44%,transparent 88%),radial-gradient(circle 130px at 28% 158%,#000 0 14%,rgba(0,0,0,0.45) 46%,transparent 90%),radial-gradient(circle 210px at 58% 152%,#000 0 12%,rgba(0,0,0,0.5) 44%,transparent 88%),radial-gradient(circle 150px at 76% 160%,#000 0 14%,rgba(0,0,0,0.45) 46%,transparent 90%),radial-gradient(circle 280px at 102% 132%,#000 0 10%,rgba(0,0,0,0.5) 42%,transparent 90%),radial-gradient(circle 260px at 112% -16%,#000 0 8%,rgba(0,0,0,0.42) 42%,rgba(0,0,0,0.14) 68%,transparent 90%),radial-gradient(circle 150px at 88% -20%,#000 0 12%,rgba(0,0,0,0.38) 46%,transparent 88%); -webkit-mask-image:radial-gradient(circle 260px at 2% 136%,#000 0 10%,rgba(0,0,0,0.55) 42%,rgba(0,0,0,0.2) 70%,transparent 92%),radial-gradient(circle 180px at 16% 148%,#000 0 12%,rgba(0,0,0,0.5) 44%,transparent 88%),radial-gradient(circle 130px at 28% 158%,#000 0 14%,rgba(0,0,0,0.45) 46%,transparent 90%),radial-gradient(circle 210px at 58% 152%,#000 0 12%,rgba(0,0,0,0.5) 44%,transparent 88%),radial-gradient(circle 150px at 76% 160%,#000 0 14%,rgba(0,0,0,0.45) 46%,transparent 90%),radial-gradient(circle 280px at 102% 132%,#000 0 10%,rgba(0,0,0,0.5) 42%,transparent 90%),radial-gradient(circle 260px at 112% -16%,#000 0 8%,rgba(0,0,0,0.42) 42%,rgba(0,0,0,0.14) 68%,transparent 90%),radial-gradient(circle 150px at 88% -20%,#000 0 12%,rgba(0,0,0,0.38) 46%,transparent 88%); animation:float 40s ease-in-out infinite alternate;"></div>
+    <div style="position:absolute; inset:0; background:radial-gradient(ellipse 60% 55% at 34% 34%, rgba(247,245,239,0.1), transparent 72%); animation:bloom 11s ease-in-out infinite; pointer-events:none;"></div>
+    <div style="position:absolute; inset:0; background-image:radial-gradient(circle,#F7F5EF 0.5px,transparent 0.8px); background-size:3px 3px; opacity:0.11; pointer-events:none;"></div>
+
+    <div style="position:absolute; top:38%; right:9%; width:clamp(120px,14vw,210px); aspect-ratio:1; background:#F7F5EF; clip-path:var(--s5); transform:rotate(-9deg); animation:tw 8.5s ease-in-out infinite 0.4s; pointer-events:none;" data-om-label="STAR"></div>
+    <div style="position:absolute; top:5%; right:24%; width:clamp(70px,8vw,116px); aspect-ratio:1; background:#F7F5EF; clip-path:var(--s4); transform:rotate(7deg) scaleY(1.3); animation:tw 6.2s ease-in-out infinite 1.1s; pointer-events:none;"></div>
+    <div style="position:absolute; top:11%; right:5%; width:clamp(34px,3.6vw,54px); aspect-ratio:1; background:#F7F5EF; clip-path:var(--s4); transform:rotate(-16deg) scaleX(0.8); animation:tw 4.6s ease-in-out infinite; pointer-events:none;"></div>
+    <div style="position:absolute; bottom:11%; right:29%; width:clamp(18px,2vw,28px); aspect-ratio:1; background:var(--spot); clip-path:var(--s4); transform:rotate(12deg); animation:tw 3.6s ease-in-out infinite 1.6s; pointer-events:none;"></div>
+    <div style="position:absolute; top:30%; right:20%; width:11px; height:11px; background:#F7F5EF; clip-path:var(--s4); animation:tw 5.4s ease-in-out infinite 2.2s; pointer-events:none;"></div>
+    <div style="position:absolute; bottom:30%; right:38%; width:8px; height:8px; background:#F7F5EF; opacity:0.7; clip-path:var(--s4); animation:tw 4.2s ease-in-out infinite 0.8s; pointer-events:none;"></div>
+    <div style="position:absolute; bottom:4%; left:3%; width:clamp(30px,3.2vw,48px); aspect-ratio:1; background:#F7F5EF; opacity:0.45; clip-path:var(--s4); transform:rotate(-6deg); animation:tw 7.8s ease-in-out infinite 1.9s; pointer-events:none;"></div>
+
+    <div style="grid-area:1/1; position:relative; align-self:center; width:100%; padding:clamp(22px,3.4vw,54px) clamp(22px,4.2vw,66px); display:flex; flex-direction:column; gap:clamp(13px,2vw,26px);">
+      <div style="display:flex; align-items:center; gap:13px;">
+        <div style="width:clamp(20px,2.6vw,38px); height:1px; background:var(--spot);"></div>
+        <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:clamp(11px,1.15vw,14px); letter-spacing:0.26em; text-transform:uppercase; color:#F7F5EF;">episode complete</div>
+      </div>
+
+      <h1 style="margin:0; font-family:'Zen Kaku Gothic New',sans-serif; font-weight:900; font-size:clamp(30px,5vw,68px); line-height:1.02; letter-spacing:-0.02em; color:#F7F5EF; max-width:15ch; text-wrap:balance;">Finish applying to keep watching.</h1>
+
+      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:clamp(12px,1.6vw,22px);">
+        <div style="display:flex; gap:7px;">
+          <sc-for list="{{ slots }}" as="s" hint-placeholder-count="5">
+            <div style="width:clamp(30px,3.4vw,54px); height:clamp(9px,1vw,13px); border:1px solid rgba(247,245,239,0.7); position:relative; overflow:hidden;">
+              <sc-if value="{{ s.on }}"><div style="position:absolute; inset:0; background:#F7F5EF;"></div></sc-if>
+              <sc-if value="{{ s.cur }}"><div style="position:absolute; inset:0; background-image:radial-gradient(circle,#F7F5EF 1.4px,transparent 1.8px); background-size:4px 4px; animation:pulse 2.4s ease-in-out infinite;"></div></sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:clamp(11.5px,1.15vw,14px); letter-spacing:0.14em; text-transform:uppercase; color:#CFCBC3;">{{ lockCountLine }}</div>
+      </div>
+
+      <sc-if value="{{ showQuote }}" hint-placeholder-val="{{ true }}">
+      <div style="max-width:50ch;">
+        <div style="font-family:'Zen Kaku Gothic New',sans-serif; font-weight:300; font-size:clamp(13px,1.4vw,18px); line-height:1.75; color:#EDEAE2; text-wrap:pretty;">“Compared to a man as big as me you realize how small you are, don't you? Even I can be frightened by my own greatness.”</div>
+        <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:clamp(10.5px,1vw,12.5px); letter-spacing:0.16em; text-transform:uppercase; color:#9C988F; margin-top:10px;">black star · soul eater</div>
+      </div>
+      </sc-if>
+
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 9px 12px; position: relative">
+        <button onClick="{{ logApp }}" style="font-family:'VCROSD','DotGothic16',monospace; font-size:clamp(12px,1.2vw,15px); letter-spacing:0.1em; text-transform:uppercase; padding:clamp(13px,1.4vw,18px) clamp(18px,2.2vw,32px); border:1px solid #F7F5EF; background:#F7F5EF; color:#141412; transition:opacity 140ms ease;" style-hover="opacity:0.86;">open job queue · 8</button>
+        <button onClick="{{ snooze }}" style="font-family:'VCROSD','DotGothic16',monospace; font-size:clamp(11.5px,1.1vw,14px); letter-spacing:0.1em; text-transform:uppercase; padding:clamp(12px,1.3vw,17px) clamp(16px,1.9vw,26px); border:1px solid rgba(247,245,239,0.4); background:transparent; color:#EDEAE2; transition:border-color 140ms ease;" style-hover="border-color:#F7F5EF;">{{ snoozeLabel }}</button>
+        <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:clamp(10.5px,1vw,12.5px); letter-spacing:0.1em; text-transform:uppercase; color:#8A867E;">{{ snoozeNote }}</div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isDash }}" hint-placeholder-val="{{ true }}">
+  <div data-screen-label="Dashboard" style="width:100%; max-width:1140px; background:#F7F5EF; border:1px solid var(--line); position:relative; padding:12px; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; overflow:hidden;">
+    <div style="position: absolute; inset: 0; background-image: radial-gradient(circle,#1A1A18 0.5px,transparent 0.8px); background-size: 3px 3px; opacity: 0.08; pointer-events: none; z-index: 4; left: 24px; top: 2px"></div>
+    <div style="position:absolute; left:536px; top:94px; width:121px; height:121px; background:#F7F5EF; clip-path:var(--s5); transform:rotate(-3deg); animation:tw 7.6s ease-in-out infinite 0.3s; pointer-events:none; z-index:4;"></div>
+    <div style="position:absolute; left:713px; top:16px; width:112px; height:112px; background:#F7F5EF; clip-path:var(--s5); transform:rotate(8deg); animation:tw 6.4s ease-in-out infinite 1.5s; pointer-events:none; z-index:4;"></div>
+
+    <div style="grid-column:1/-1; position:relative; border:1px solid var(--line); background:#1A1A18; padding:clamp(20px,2.6vw,34px) clamp(20px,2.8vw,38px) clamp(30px,3.6vw,48px); overflow:hidden;">
+      <div style="position:absolute; inset:0; background-image:radial-gradient(circle,#F7F5EF 1.6px,transparent 2px); background-size:var(--tone) var(--tone); filter:blur(0.5px); mask-image:radial-gradient(circle 200px at 96% 150%,#000 0 10%,rgba(0,0,0,0.5) 42%,transparent 90%),radial-gradient(circle 140px at 76% 164%,#000 0 12%,rgba(0,0,0,0.45) 46%,transparent 90%),radial-gradient(circle 100px at 60% 172%,#000 0 14%,rgba(0,0,0,0.4) 48%,transparent 90%),radial-gradient(circle 170px at 112% -20%,#000 0 10%,rgba(0,0,0,0.38) 44%,transparent 88%); -webkit-mask-image:radial-gradient(circle 200px at 96% 150%,#000 0 10%,rgba(0,0,0,0.5) 42%,transparent 90%),radial-gradient(circle 140px at 76% 164%,#000 0 12%,rgba(0,0,0,0.45) 46%,transparent 90%),radial-gradient(circle 100px at 60% 172%,#000 0 14%,rgba(0,0,0,0.4) 48%,transparent 90%),radial-gradient(circle 170px at 112% -20%,#000 0 10%,rgba(0,0,0,0.38) 44%,transparent 88%); animation:float 34s ease-in-out infinite alternate;"></div>
+      <div style="position:absolute; inset:0; background:radial-gradient(ellipse 60% 70% at 26% 24%, rgba(247,245,239,0.1), transparent 72%); animation:bloom 10s ease-in-out infinite;"></div>
+      <div style="position:absolute; bottom:4%; right:-7%; width:clamp(110px,13vw,190px); aspect-ratio:1; background:#F7F5EF; clip-path:var(--s5); transform:rotate(-7deg); animation:tw 5.2s ease-in-out infinite; pointer-events:none;"></div>
+      <div style="position:absolute; top:26%; right:17%; width:clamp(20px,2.2vw,30px); aspect-ratio:1; background:#F7F5EF; clip-path:var(--s4); transform:rotate(10deg); animation:tw 6.8s ease-in-out infinite 1.4s; pointer-events:none;"></div>
+      <div style="position:relative; display:flex; flex-wrap:wrap; align-items:baseline; gap:10px 22px;">
+        <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:16px; letter-spacing:0.1em; color:#F7F5EF;">next<span style="color:var(--spot);">.</span>ep<span style="color:var(--spot);">.</span>lock</div>
+        <div style="display:flex; flex-wrap:wrap; gap:2px;">
+          <a href="#dashboard" style="font-family:'VCROSD','DotGothic16',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; padding:5px 11px; background:#F7F5EF; color:#1A1A18; text-decoration:none;">dashboard</a>
+          <a href="#queue" style="font-family:'VCROSD','DotGothic16',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; padding:5px 11px; color:#9C988F; text-decoration:none;">queue</a>
+          <a href="#boards" style="font-family:'VCROSD','DotGothic16',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; padding:5px 11px; color:#9C988F; text-decoration:none;">boards</a>
+          <a href="#settings" style="font-family:'VCROSD','DotGothic16',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; padding:5px 11px; color:#9C988F; text-decoration:none;">settings</a>
+        </div>
+        <div style="margin-left:auto; font-family:'VCROSD','DotGothic16',monospace; font-size:11.5px; letter-spacing:0.16em; text-transform:uppercase; color:#8A867E;">ch. 06 · sep 2026</div>
+      </div>
+      <h1 style="position:relative; margin:clamp(20px,2.4vw,32px) 0 0; font-family:'Zen Kaku Gothic New',sans-serif; font-weight:900; font-size:clamp(28px,4vw,54px); line-height:1.04; letter-spacing:-0.02em; color:#F7F5EF; max-width:19ch; text-wrap:balance;">Unemployed or a weeb?</h1>
+      <div style="position:relative; font-family:'Zen Kaku Gothic New',sans-serif; font-weight:300; font-size:clamp(13px,1.3vw,15px); line-height:1.7; color:#B9B5AD; margin-top:12px; max-width:38ch;">You can't do both. Only watch the next episode once the count is met.</div>
+    </div>
+
+    <sc-for list="{{ stats }}" as="st" hint-placeholder-count="4">
+      <div style="position:relative; border:1px solid var(--line); background:#F2EFE8; padding:16px 17px 18px; overflow:hidden; min-width:0;">
+        <div style="position:absolute; inset:0; background-image:radial-gradient(circle,#1A1A18 1.4px,transparent 1.8px); background-size:var(--tone) var(--tone); opacity:0.3; filter:blur(0.4px); mask-image:radial-gradient(circle 96px at 106% 142%,#000 0 12%,rgba(0,0,0,0.5) 46%,transparent 90%),radial-gradient(circle 60px at 78% 156%,#000 0 14%,rgba(0,0,0,0.42) 48%,transparent 90%); -webkit-mask-image:radial-gradient(circle 96px at 106% 142%,#000 0 12%,rgba(0,0,0,0.5) 46%,transparent 90%),radial-gradient(circle 60px at 78% 156%,#000 0 14%,rgba(0,0,0,0.42) 48%,transparent 90%); pointer-events:none;"></div>
+        <div style="position:relative; font-family:'VCROSD','DotGothic16',monospace; font-size:11.5px; letter-spacing:0.16em; text-transform:uppercase; color:#6B6760;">{{ st.label }}</div>
+        <div style="position:relative; font-family:'VCROSD','DotGothic16',monospace; font-size:clamp(40px,3.8vw,52px); line-height:0.9; color:#1A1A18; margin-top:14px;">{{ st.value }}</div>
+        <div style="position:relative; font-family:'Zen Kaku Gothic New',sans-serif; font-weight:400; font-size:12px; line-height:1.5; color:#6B6760; margin-top:9px;">{{ st.note }}</div>
+      </div>
+    </sc-for>
+
+    <div style="grid-column:1/-1; position:relative; border:1px solid var(--line); background:#F2EFE8; padding:clamp(20px,2.4vw,30px); display:flex; flex-wrap:wrap; align-items:center; gap:22px 32px; overflow:hidden;">
+      <div style="position:absolute; inset:0; background-image:radial-gradient(circle,#1A1A18 1.5px,transparent 1.9px); background-size:var(--tone) var(--tone); opacity:0.3; filter:blur(0.5px); mask-image:radial-gradient(circle 170px at -4% 150%,#000 0 10%,rgba(0,0,0,0.5) 42%,transparent 90%),radial-gradient(circle 110px at 14% 164%,#000 0 12%,rgba(0,0,0,0.42) 46%,transparent 90%),radial-gradient(circle 180px at 103% 148%,#000 0 10%,rgba(0,0,0,0.45) 42%,transparent 90%); -webkit-mask-image:radial-gradient(circle 170px at -4% 150%,#000 0 10%,rgba(0,0,0,0.5) 42%,transparent 90%),radial-gradient(circle 110px at 14% 164%,#000 0 12%,rgba(0,0,0,0.42) 46%,transparent 90%),radial-gradient(circle 180px at 103% 148%,#000 0 10%,rgba(0,0,0,0.45) 42%,transparent 90%); pointer-events:none;"></div>
+      <div style="position:relative; flex:1 1 300px; min-width:0;">
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px;">
+          <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:11.5px; letter-spacing:0.2em; text-transform:uppercase; color:#6B6760;">active lock</div>
+          <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:11.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--spot); border:1px solid var(--spot); padding:3px 9px;">{{ lockTag }}</div>
+        </div>
+        <div style="font-family:'Zen Kaku Gothic New',sans-serif; font-weight:700; font-size:clamp(21px,2.3vw,30px); line-height:1.2; letter-spacing:-0.015em; color:#1A1A18; margin-top:15px; text-wrap:balance;">{{ dashLockLine }}</div>
+        <div style="font-family:'Zen Kaku Gothic New',sans-serif; font-weight:300; font-size:13px; line-height:1.6; color:#4A4740; margin-top:8px;">BLEACH: TYBW — The Calamity · Episode 5 is waiting.</div>
+        <div style="display:flex; gap:7px; margin-top:18px; max-width:360px;">
+          <sc-for list="{{ slots }}" as="s" hint-placeholder-count="5">
+            <div style="flex:1; height:11px; border:1px solid var(--line); position:relative; overflow:hidden;">
+              <sc-if value="{{ s.on }}"><div style="position:absolute; inset:0; background:#1A1A18;"></div></sc-if>
+              <sc-if value="{{ s.cur }}"><div style="position:absolute; inset:0; background-image:radial-gradient(circle,#1A1A18 1.4px,transparent 1.8px); background-size:4px 4px; animation:pulse 2.4s ease-in-out infinite;"></div></sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="position:relative; display:flex; flex-direction:column; gap:7px; flex:0 0 auto;">
+        <button onClick="{{ logApp }}" style="font-family:'VCROSD','DotGothic16',monospace; font-size:13px; letter-spacing:0.1em; text-transform:uppercase; padding:15px 26px; border:1px solid var(--line); background:#1A1A18; color:#F7F5EF; transition:opacity 140ms ease;" style-hover="opacity:0.84;">{{ primaryLabel }}</button>
+        <button onClick="{{ reset }}" style="font-family:'VCROSD','DotGothic16',monospace; font-size:12px; letter-spacing:0.1em; text-transform:uppercase; padding:12px 26px; border:1px solid var(--line); background:#F7F5EF; color:#1A1A18; transition:background 140ms ease;" style-hover="background:#E8E4DB;">reset lock</button>
+      </div>
+    </div>
+
+    <div style="grid-column:1/-1; border:1px solid var(--line); background:#F7F5EF; padding:clamp(18px,2.2vw,26px) clamp(18px,2.4vw,28px) 6px;">
+      <div style="display:flex; align-items:baseline; justify-content:space-between; gap:14px; padding-bottom:12px; border-bottom:1px solid rgba(26,26,24,0.28);">
+        <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:11.5px; letter-spacing:0.2em; text-transform:uppercase; color:#6B6760;">recent applications</div>
+        <a href="#all" style="font-family:'VCROSD','DotGothic16',monospace; font-size:11.5px; letter-spacing:0.12em; text-transform:uppercase; color:#6B6760;">see all</a>
+      </div>
+      <sc-for list="{{ rows }}" as="r" hint-placeholder-count="4">
+        <div style="display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 16px; padding:16px 0; border-bottom:1px solid rgba(26,26,24,0.12); transition:background 140ms ease;" style-hover="background:#F2EFE8;">
+          <div style="flex:1 1 250px; min-width:0;">
+            <div style="font-family:'Zen Kaku Gothic New',sans-serif; font-weight:500; font-size:15.5px; line-height:1.35; color:#1A1A18;">{{ r.role }}</div>
+            <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:11.5px; letter-spacing:0.1em; text-transform:uppercase; color:#6B6760; margin-top:5px;">{{ r.company }} · {{ r.source }}</div>
+          </div>
+          <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#1A1A18; border:1px solid rgba(26,26,24,0.5); padding:3px 9px;">{{ r.status }}</div>
+          <div style="font-family:'VCROSD','DotGothic16',monospace; font-size:12px; letter-spacing:0.06em; color:#9C988F; width:56px; text-align:right;">{{ r.date }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1200,&quot;height&quot;:940},&quot;spotColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#B3122B&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#B3122B&quot;,&quot;#1A1A18&quot;,&quot;#4A6FA5&quot;,&quot;#7A5C8E&quot;],&quot;section&quot;:&quot;Ink&quot;},&quot;tonePitch&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:6,&quot;min&quot;:4,&quot;max&quot;:11,&quot;step&quot;:0.5,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Ink&quot;},&quot;panelLine&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.82,&quot;min&quot;:0.15,&quot;max&quot;:1,&quot;step&quot;:0.01,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Ink&quot;},&quot;showQuote&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Content&quot;}}">
+class Component extends DCLogic {
+  state = { surface: 'popup', applied: 2, target: 5, auto: true, snoozed: false };
+
+  componentDidMount() { this.syncVars(); }
+  componentDidUpdate() { this.syncVars(); }
+
+  syncVars() {
+    const el = document.querySelector('[style*="--tone"]');
+    if (!el || !el.style) return;
+    const p = this.props || {};
+    if (p.spotColor) el.style.setProperty('--spot', p.spotColor);
+    if (p.tonePitch) el.style.setProperty('--tone', p.tonePitch + 'px');
+    el.style.setProperty('--line', 'rgba(26,26,24,' + (p.panelLine ?? 0.82) + ')');
+  }
+
+  tab(name) {
+    const on = this.state.surface === name;
+    return { bg: on ? '#1A1A18' : 'transparent', fg: on ? '#F7F5EF' : '#1A1A18' };
+  }
+
+  renderVals() {
+    const { surface, applied, target, auto, snoozed } = this.state;
+    const met = applied >= target;
+    const names = { 1: 'warm-up', 2: 'steady', 3: 'serious', 4: 'relentless', 5: 'hired in time' };
+    const tp = this.tab('popup'), tl = this.tab('lock'), td = this.tab('dashboard');
+
+    return {
+      isPopup: surface === 'popup',
+      isLock: surface === 'lock',
+      isDash: surface === 'dashboard',
+      goPopup: () => this.setState({ surface: 'popup' }),
+      goLock: () => this.setState({ surface: 'lock' }),
+      goDash: () => this.setState({ surface: 'dashboard' }),
+      tabPopupBg: tp.bg, tabPopupFg: tp.fg,
+      tabLockBg: tl.bg, tabLockFg: tl.fg,
+      tabDashBg: td.bg, tabDashFg: td.fg,
+
+      applied, target,
+      slots: Array.from({ length: target }, (_, i) => ({ on: i < applied, cur: i === applied && !met })),
+      lockLabel: met ? 'lock cleared' : 'active lock',
+      lockTag: met ? 'unlocked' : 'locked',
+      lockCountLine: met ? 'count met — press play' : applied + ' of ' + target + ' applications logged',
+      dashLockLine: met ? 'Count met. Go watch it.' : (target - applied) + ' more applications to unlock.',
+      primaryLabel: met ? 'unlock next episode' : 'log an application',
+      targetName: names[target],
+      targetOpts: [1, 2, 3, 4, 5].map(n => ({
+        n, pick: () => this.setState({ target: n }),
+        bg: n === target ? '#1A1A18' : 'transparent',
+        fg: n === target ? '#F7F5EF' : '#1A1A18'
+      })),
+
+      logApp: () => this.setState(s => (s.applied >= s.target) ? { applied: 0, snoozed: false } : { applied: Math.min(s.applied + 1, s.target) }),
+      finishEp: () => this.setState({ applied: 0, snoozed: false }),
+      reset: () => this.setState({ applied: 0, snoozed: false }),
+      snooze: () => this.setState({ snoozed: true }),
+      snoozeLabel: snoozed ? 'snoozed · 10:00' : 'snooze 10 min',
+      snoozeNote: snoozed ? 'no snoozes left today' : '1 snooze left today',
+
+      toggleAuto: () => this.setState(s => ({ auto: !s.auto })),
+      autoTrackBg: auto ? '#1A1A18' : 'transparent',
+      autoKnobBg: auto ? '#F7F5EF' : '#1A1A18',
+      autoKnobLeft: auto ? '25px' : '2px',
+
+      showQuote: this.props.showQuote ?? true,
+
+      stats: [
+        { label: 'open queue', value: '8', note: '1 lined up · 7 untriaged' },
+        { label: 'applied', value: '3', note: 'all time · 3 this week' },
+        { label: 'unlocked', value: '2', note: 'episodes · 1 snooze spent' },
+        { label: 'streak', value: '4', note: 'days · best run 6' }
+      ],
+
+      rows: [
+        { role: 'Technology & Product Lead', company: 'Social Movement Technologies', source: 'by hand', status: 'screen', date: 'sep 5' },
+        { role: 'Senior Product Designer', company: 'Kaiju Interactive', source: 'from a lock', status: 'applied', date: 'sep 5' },
+        { role: 'Design Engineer', company: 'Northwind Labs', source: 'from a lock', status: 'applied', date: 'sep 4' },
+        { role: 'Product Designer, Growth', company: 'Meridian Health', source: 'by hand', status: 'rejected', date: 'sep 2' }
+      ]
+    };
+  }
+}
+
+</script>
+</body>
+</html>

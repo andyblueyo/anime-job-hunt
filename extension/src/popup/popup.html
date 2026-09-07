@@ -3,158 +3,349 @@
   <head>
     <meta charset="utf-8" />
     <title>Next Ep. Lock</title>
+    <!-- Filled by popup.ts from lib/theme.ts: tokens, keyframes, @font-face
+         (chrome.runtime.getURL) and the halftone technique classes. -->
+    <style id="nel-theme"></style>
     <style>
-      :root {
-        color-scheme: dark;
-        --color-void: oklch(0.14 0.05 300);
-        --color-void-deep: oklch(0.09 0.035 300);
-        --color-magenta: oklch(0.66 0.24 354);
-        --color-violet: oklch(0.58 0.21 288);
-        --color-teal: oklch(0.8 0.13 195);
-        --color-glow: oklch(0.96 0.015 300);
-        --color-haze: oklch(0.72 0.03 300);
-        --color-dim: oklch(0.55 0.03 300);
-      }
-
       * {
         box-sizing: border-box;
       }
 
+      html {
+        color-scheme: light;
+        background: var(--shell);
+      }
+
       body {
-        width: 300px;
+        width: 380px;
         margin: 0;
-        padding: 16px;
-        background: var(--color-void);
-        background-image: linear-gradient(180deg, transparent, var(--color-void-deep) 85%);
-        color: var(--color-glow);
-        font-family: Arial, Helvetica, sans-serif;
+        padding: 0;
+        background: var(--shell);
+        color: var(--ink);
+        font-family: var(--font-body);
         font-size: 13px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
       }
 
-      .brand {
-        font-family: "Courier New", monospace;
-        font-size: 11px;
-        letter-spacing: 0.06em;
+      button {
+        font: inherit;
+        cursor: pointer;
+        border-radius: 0;
+        margin: 0;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      a:hover {
+        color: var(--spot);
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      .mono {
+        font-family: var(--font-mono);
+        font-synthesis: none;
+        font-weight: 400;
         text-transform: uppercase;
-        margin: 0 0 14px;
       }
 
-      .brand .accent {
-        color: var(--color-magenta);
-      }
-
-      .card {
-        border-radius: 14px;
-        border: 1px solid oklch(1 0 0 / 0.1);
-        background: oklch(0.22 0.055 300 / 0.55);
-        padding: 12px 14px;
-        margin-bottom: 12px;
-      }
-
-      .eyebrow {
-        font-family: "Courier New", monospace;
-        font-size: 9px;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--color-haze);
-        margin: 0 0 6px;
-      }
-
-      .row {
+      .shell {
+        position: relative;
+        overflow: hidden;
+        padding: 11px;
         display: flex;
-        align-items: center;
+        flex-direction: column;
+        gap: 11px;
+        background: var(--paper);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .shell > .nel-grain {
+        z-index: 4;
+      }
+
+      .panel {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        background: var(--paper);
+      }
+
+      .panel-head {
+        position: relative;
+        display: flex;
+        align-items: baseline;
         justify-content: space-between;
         gap: 8px;
       }
 
-      .row + .row {
-        margin-top: 8px;
+      .label {
+        font-size: 11px;
+        letter-spacing: 0.2em;
+        color: var(--muted);
       }
 
-      .switch {
+      .tag {
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        color: var(--spot);
+      }
+
+      /* Header --------------------------------------------------------------- */
+
+      .hero {
+        background: var(--ink);
+        color: var(--paper);
+        padding: 20px 18px 40px;
+      }
+
+      .hero .nel-tone {
+        --nel-mask:
+          radial-gradient(circle 130px at 88% 150%, #000 0 12%, rgba(0, 0, 0, 0.55) 46%, rgba(0, 0, 0, 0.18) 72%, transparent 92%),
+          radial-gradient(circle 88px at 62% 168%, #000 0 14%, rgba(0, 0, 0, 0.5) 48%, transparent 88%),
+          radial-gradient(circle 62px at 34% 176%, #000 0 16%, rgba(0, 0, 0, 0.45) 50%, transparent 90%),
+          radial-gradient(circle 54px at 112% 34%, #000 0 14%, rgba(0, 0, 0, 0.4) 50%, transparent 90%);
+      }
+
+      .hero .nel-wash {
+        background: radial-gradient(ellipse 70% 60% at 30% 20%, rgba(247, 245, 239, 0.09), transparent 70%);
+        animation-duration: 9s;
+      }
+
+      .hero .spark-a {
+        top: 16px;
+        right: 26px;
+        width: 22px;
+        height: 22px;
+        transform: rotate(-8deg);
+        animation-duration: 4.4s;
+      }
+
+      .hero .spark-b {
+        top: 44px;
+        right: 58px;
+        width: 12px;
+        height: 12px;
+        animation-duration: 5.8s;
+        animation-delay: 1.2s;
+      }
+
+      .brand {
         position: relative;
-        width: 34px;
-        height: 19px;
-        border-radius: 999px;
-        border: none;
-        background: oklch(0.32 0.02 280);
-        cursor: pointer;
-        padding: 0;
-        flex-shrink: 0;
+        font-size: 17px;
+        letter-spacing: 0.1em;
+        text-transform: lowercase;
+        color: var(--paper);
       }
 
-      .switch[data-on="true"] {
-        background-image: linear-gradient(135deg, var(--color-magenta), var(--color-violet));
+      .brand .dot {
+        color: var(--spot);
       }
 
-      .switch .knob {
-        position: absolute;
-        top: 2.5px;
-        left: 2.5px;
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: oklch(0.96 0.015 300);
-        transition: left 0.15s ease;
-      }
-
-      .switch[data-on="true"] .knob {
-        left: 17.5px;
-      }
-
-      button.pill {
-        display: block;
-        width: 100%;
-        border: none;
-        border-radius: 999px;
-        padding: 9px 14px;
+      .tagline {
+        position: relative;
+        margin: 6px 0 0;
+        max-width: 26ch;
         font-size: 13px;
-        font-weight: 700;
-        cursor: pointer;
-        color: oklch(0.99 0 0);
-        background-image: linear-gradient(135deg, var(--color-magenta), var(--color-violet));
+        line-height: 1.6;
+        color: var(--muted-3);
       }
 
-      button.pill:disabled {
-        opacity: 0.5;
+      /* Not-connected notice ------------------------------------------------ */
+
+      .warn {
+        border-color: var(--spot);
+        padding: 13px 15px;
+      }
+
+      .warn p {
+        margin: 6px 0 0;
+        color: var(--muted);
+      }
+
+      .warn a {
+        color: var(--ink);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
+      /* Lock panel ----------------------------------------------------------- */
+
+      .lock {
+        background: var(--paper-2);
+        padding: 18px 18px 20px;
+      }
+
+      .lock .nel-tone {
+        --nel-mask:
+          radial-gradient(circle 120px at 104% 138%, #000 0 12%, rgba(0, 0, 0, 0.5) 46%, transparent 88%),
+          radial-gradient(circle 78px at 76% 152%, #000 0 14%, rgba(0, 0, 0, 0.45) 48%, transparent 90%);
+        animation: none;
+      }
+
+      .count {
+        position: relative;
+        display: flex;
+        align-items: flex-end;
+        gap: 11px;
+        margin-top: 12px;
+      }
+
+      .count .big {
+        font-size: 62px;
+        line-height: 0.78;
+        color: var(--ink);
+      }
+
+      .count .of {
+        font-size: 26px;
+        line-height: 1;
+        color: var(--muted-2);
+        padding-bottom: 5px;
+      }
+
+      .count .copy {
+        margin: 0;
+        padding-bottom: 6px;
+        font-size: 13px;
+        line-height: 1.5;
+        color: #4a4740;
+      }
+
+      .lock .free {
+        position: relative;
+        margin: 10px 0 0;
+        font-size: 13px;
+        color: #4a4740;
+        max-width: 30ch;
+      }
+
+      .lock .nel-slots {
+        position: relative;
+        margin-top: 18px;
+      }
+
+      .lock .nel-slot {
+        height: 9px;
+      }
+
+      .lock-foot {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      /* Buttons -------------------------------------------------------------- */
+
+      .btn {
+        width: 100%;
+        font-family: var(--font-mono);
+        font-synthesis: none;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-size: 12px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        transition: background 140ms ease, opacity 140ms ease;
+      }
+
+      .btn:hover:not(:disabled) {
+        background: var(--shell);
+      }
+
+      .btn:disabled {
+        opacity: 0.45;
         cursor: not-allowed;
       }
 
-      button.pill-ghost {
-        background-image: none;
-        background-color: oklch(1 0 0 / 0.07);
-        border: 1px solid oklch(1 0 0 / 0.14);
-        color: var(--color-glow);
-        margin-top: 8px;
+      .btn.primary {
+        font-size: 14px;
+        padding: 16px 12px;
+        background: var(--ink);
+        color: var(--paper);
+      }
+
+      .btn.primary:hover:not(:disabled) {
+        background: var(--ink);
+        opacity: 0.84;
+      }
+
+      .btn.small {
+        width: auto;
+        font-size: 11px;
+        padding: 7px 12px;
+      }
+
+      /* Inert placeholder button: the DEMO tag comes from [data-demo]::after
+         in the theme; the color flip keeps it readable on ink. */
+      .btn.primary[data-demo]::after {
+        color: var(--muted-2);
+      }
+
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+      }
+
+      .status {
+        margin: 0;
+        min-height: 1em;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+
+      .status.error {
+        color: var(--spot);
+      }
+
+      /* Jobs per episode ----------------------------------------------------- */
+
+      .per-episode {
+        padding: 15px 17px 17px;
+      }
+
+      .per-episode .name {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .per-episode .name.error {
+        color: var(--spot);
       }
 
       .segments {
         display: flex;
-        gap: 4px;
-        margin: 8px 0 6px;
+        gap: 7px;
+        margin-top: 11px;
       }
 
       .segment {
         flex: 1;
-        border-radius: 9px;
-        border: 1px solid oklch(1 0 0 / 0.12);
-        background: oklch(1 0 0 / 0.03);
-        color: var(--color-haze);
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 13px;
-        font-weight: 700;
-        padding: 7px 0;
-        cursor: pointer;
+        font-family: var(--font-mono);
+        font-synthesis: none;
+        font-size: 17px;
+        padding: 11px 0;
+        border: 1px solid var(--line);
+        background: transparent;
+        color: var(--ink);
       }
 
       .segment[aria-pressed="true"] {
-        border-color: oklch(0.66 0.24 354 / 0.55);
-        background-image: linear-gradient(
-          135deg,
-          oklch(0.66 0.24 354 / 0.3),
-          oklch(0.58 0.21 288 / 0.3)
-        );
-        color: var(--color-glow);
+        background: var(--ink);
+        color: var(--paper);
       }
 
       .segment:disabled {
@@ -162,101 +353,158 @@
         cursor: not-allowed;
       }
 
-      .status-text.error {
-        color: var(--color-magenta);
-      }
+      /* Auto-detect ---------------------------------------------------------- */
 
-      .bar {
+      .toggle-row {
         display: flex;
-        gap: 4px;
-        margin: 8px 0;
+        align-items: center;
+        gap: 14px;
+        border-color: var(--line-soft);
+        padding: 13px 15px;
       }
 
-      .bar span {
-        height: 8px;
+      .toggle-row .text {
         flex: 1;
-        border-radius: 999px;
-        background: oklch(1 0 0 / 0.1);
+        min-width: 0;
       }
 
-      .bar span[data-filled="true"] {
-        background-image: linear-gradient(135deg, var(--color-magenta), var(--color-violet));
-      }
-
-      .status-text {
-        color: var(--color-haze);
+      .toggle-row .text p {
+        margin: 4px 0 0;
         font-size: 12px;
-        margin: 0;
+        line-height: 1.55;
+        color: var(--muted);
       }
 
-      a {
-        color: var(--color-violet);
-        text-decoration: none;
+      .switch {
+        flex: none;
+        position: relative;
+        display: block;
+        width: 46px;
+        height: 22px;
+        padding: 0;
+        border: 1px solid var(--line);
+        background: transparent;
       }
 
-      a:hover {
-        text-decoration: underline;
+      .switch .knob {
+        position: absolute;
+        top: 2px;
+        bottom: 2px;
+        left: 2px;
+        width: 18px;
+        background: var(--ink);
+        transition: left 180ms ease;
       }
 
-      .footer {
-        text-align: center;
-        margin-top: 4px;
+      .switch[data-on="true"] {
+        background: var(--ink);
       }
 
-      .footer a {
+      .switch[data-on="true"] .knob {
+        left: 25px;
+        background: var(--paper);
+      }
+
+      /* Footer --------------------------------------------------------------- */
+
+      .foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 2px 4px;
         font-size: 11px;
-        color: var(--color-dim);
+        letter-spacing: 0.12em;
+        color: var(--muted);
+      }
+
+      .foot .queue {
+        color: var(--muted-2);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .switch .knob {
+          transition: none;
+        }
       }
     </style>
   </head>
   <body>
-    <p class="brand">Next<span class="accent">.</span>Ep<span class="accent">.</span>Lock</p>
+    <div class="shell">
+      <div class="nel-grain"></div>
 
-    <div id="token-warning" class="card" hidden>
-      <p class="eyebrow">Not connected</p>
-      <p class="status-text">
-        No API token saved. <a href="#" id="open-options">Open Options</a> to connect your
-        account.
-      </p>
-    </div>
+      <header class="panel hero">
+        <div class="nel-tone"></div>
+        <div class="nel-wash"></div>
+        <div class="nel-sparkle spark-a"></div>
+        <div class="nel-sparkle spark-b"></div>
+        <div class="mono brand">next<span class="dot">.</span>ep<span class="dot">.</span>lock</div>
+        <p class="tagline">The next episode stays shut until the count is met.</p>
+      </header>
 
-    <div class="card">
-      <div class="row">
-        <p class="eyebrow" style="margin: 0">Auto-detect (flixcloud.cc)</p>
-        <button id="auto-detect-toggle" class="switch" data-on="false" aria-pressed="false">
+      <div id="token-warning" class="panel warn" hidden>
+        <div class="mono tag">not connected</div>
+        <p>
+          No API token saved. <a href="#" id="open-options">Open Options</a> to connect your
+          account.
+        </p>
+      </div>
+
+      <section class="panel lock" id="lock-panel">
+        <div class="nel-tone nel-tone-dark"></div>
+        <div class="panel-head">
+          <div class="mono label" id="lock-label">no active lock</div>
+          <div class="mono tag" id="lock-tag">unlocked</div>
+        </div>
+        <div class="count" id="lock-count" hidden>
+          <div class="mono big" id="lock-applied">0</div>
+          <div class="mono of" id="lock-target">/ 0</div>
+          <p class="copy">applications<br />until the next episode</p>
+        </div>
+        <p class="free" id="lock-free">The next episode is open. Finishing one starts a lock.</p>
+        <div class="nel-slots" id="session-bar" hidden role="progressbar" aria-valuemin="0"></div>
+        <div class="lock-foot" id="lock-foot" hidden>
+          <span class="mono status" id="snooze-status"></span>
+          <button id="snooze-button" class="btn small" type="button">snooze</button>
+        </div>
+      </section>
+
+      <div class="stack">
+        <button id="log-application" class="btn primary" type="button" data-demo>
+          log an application
+        </button>
+        <button id="trigger-button" class="btn" type="button">i finished an episode</button>
+        <p id="trigger-status" class="mono status"></p>
+      </div>
+
+      <section class="panel per-episode">
+        <div class="panel-head">
+          <div class="mono label">jobs per episode</div>
+          <div class="name" id="episode-label">Loading…</div>
+        </div>
+        <div id="episode-segments" class="segments" role="group" aria-label="Jobs per episode">
+          <button type="button" class="segment" data-count="1" aria-pressed="false">1</button>
+          <button type="button" class="segment" data-count="2" aria-pressed="false">2</button>
+          <button type="button" class="segment" data-count="3" aria-pressed="false">3</button>
+          <button type="button" class="segment" data-count="4" aria-pressed="false">4</button>
+          <button type="button" class="segment" data-count="5" aria-pressed="false">5</button>
+        </div>
+      </section>
+
+      <section class="panel toggle-row">
+        <div class="text">
+          <div class="mono label">auto-detect</div>
+          <p>Catches the episode ending on flixcloud.cc. Experimental; the button above always works.</p>
+        </div>
+        <button id="auto-detect-toggle" class="switch" data-on="false" aria-pressed="false" aria-label="Auto-detect">
           <span class="knob"></span>
         </button>
-      </div>
-      <p class="status-text" style="margin-top: 6px">
-        Experimental — attempts to catch the episode ending on its own. The button below always
-        works regardless.
-      </p>
-    </div>
+      </section>
 
-    <div class="card">
-      <p class="eyebrow">Jobs per episode</p>
-      <div id="episode-segments" class="segments" role="group" aria-label="Jobs per episode">
-        <button type="button" class="segment" data-count="1" aria-pressed="false">1</button>
-        <button type="button" class="segment" data-count="2" aria-pressed="false">2</button>
-        <button type="button" class="segment" data-count="3" aria-pressed="false">3</button>
-        <button type="button" class="segment" data-count="4" aria-pressed="false">4</button>
-        <button type="button" class="segment" data-count="5" aria-pressed="false">5</button>
-      </div>
-      <p id="episode-label" class="status-text">Loading…</p>
-    </div>
-
-    <div id="session-card" class="card" hidden>
-      <p class="eyebrow">Active lock</p>
-      <p id="session-progress" class="status-text"></p>
-      <div id="session-bar" class="bar"></div>
-      <button id="snooze-button" class="pill pill-ghost" type="button">Snooze</button>
-    </div>
-
-    <button id="trigger-button" class="pill" type="button">I finished an episode</button>
-    <p id="trigger-status" class="status-text" style="margin-top: 8px"></p>
-
-    <div class="footer">
-      <a href="#" id="open-options-footer">Options</a>
+      <footer class="mono foot">
+        <a href="#" id="open-options-footer">options</a>
+        <span class="queue" id="queue-count" data-demo></span>
+      </footer>
     </div>
 
     <script src="popup.js"></script>

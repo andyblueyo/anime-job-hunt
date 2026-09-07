@@ -4,41 +4,53 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LINKS = [
-  { href: "/", label: "Dashboard" },
-  { href: "/queue", label: "Queue" },
-  { href: "/settings", label: "Settings" },
+  { href: "/", label: "dashboard" },
+  { href: "/queue", label: "queue" },
+  // Phase 3: the boards page exists (scraper sources, runs, and what the
+  // filter kept out) — this is a real route, not a stub.
+  { href: "/boards", label: "boards" },
+  { href: "/settings", label: "settings" },
 ] as const;
 
+const MONTH = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" });
+
+/**
+ * Dark hairline band at the top of every page: brand mark, mono nav, and the
+ * month on the right. The dashboard stacks its own dark hero panel under it.
+ */
 export function Nav() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-10 border-b border-white/10 bg-void/60 backdrop-blur-lg">
-      <div className="mx-auto flex w-full max-w-5xl items-center gap-6 px-5 py-4">
-        <Link href="/" className="brand shrink-0">
-          Next<span className="text-magenta">.</span>Ep<span className="text-magenta">.</span>Lock
-        </Link>
+    <header className="card card-dark relative flex flex-wrap items-baseline gap-x-6 gap-y-2.5 px-5 py-4 sm:px-7">
+      <Link href="/" className="brand shrink-0">
+        next<span className="text-spot">.</span>ep<span className="text-spot">.</span>lock
+      </Link>
 
-        <nav className="flex items-center gap-1">
-          {LINKS.map(({ href, label }) => {
-            const active = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={active ? "page" : undefined}
-                className={`rounded-full px-3.5 py-1.5 text-sm font-bold transition-colors ${
-                  active
-                    ? "bg-white/12 text-glow"
-                    : "text-haze hover:bg-white/6 hover:text-glow"
-                }`}
-              >
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
+      <nav className="flex flex-wrap gap-0.5">
+        {LINKS.map(({ href, label }) => {
+          const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={`mono px-[11px] py-[5px] text-[12px] tracking-[0.12em] no-underline transition-colors ${
+                active ? "bg-paper text-ink" : "text-muted-2 hover:text-paper"
+              }`}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <span
+        className="mono ml-auto text-[11px] tracking-[0.16em] text-[#8A867E]"
+        suppressHydrationWarning
+      >
+        {MONTH.format(new Date())}
+      </span>
     </header>
   );
 }

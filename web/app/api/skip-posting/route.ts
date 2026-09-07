@@ -1,6 +1,6 @@
 import { getDb, getUserId } from "@/lib/supabase/server";
 import { requireExtensionToken } from "@/lib/extension-auth";
-import { getSessionProgress } from "@/lib/unlock-sessions";
+import { reportSessionProgress } from "@/lib/unlock-sessions";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +84,9 @@ export async function POST(request: Request) {
       return Response.json({ error: updateError.message }, { status: 500 });
     }
 
-    const session = sessionId ? await getSessionProgress(db, sessionId) : null;
+    // Null when that session had already completed — reporting it would
+    // make the extension clear the current lock (see reportSessionProgress).
+    const session = sessionId ? await reportSessionProgress(db, sessionId) : null;
     return Response.json({ ok: true, job_posting_id: jobPostingId, session });
   } catch (error) {
     return Response.json(

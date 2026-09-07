@@ -55,6 +55,9 @@ export interface Settings {
   target_roles: string[];
   target_locations: string[];
   excluded_companies: string[];
+  experience_level: "any" | "entry" | "mid" | "senior" | "lead" | "executive";
+  salary_min: number | null;
+  salary_currency: string;
   tab_cap_per_hour: number;
   default_anime_mode: boolean;
   near_end_threshold_seconds: number;
@@ -70,10 +73,51 @@ export interface JobBoard {
   name: string;
   url: string;
   source_type: BoardSourceType;
-  scrape_config: Record<string, unknown>;
+  /** `adapter` picks the code path in lib/scraper/sources; the rest is that adapter's config. */
+  scrape_config: Record<string, unknown> & { adapter?: string };
   enabled: boolean;
   last_run_at: string | null;
   created_at: string;
+}
+
+export type ScrapeRunStatus = "running" | "ok" | "partial" | "skipped" | "error";
+
+export interface ScrapeRun {
+  id: string;
+  user_id: string;
+  board_id: string | null;
+  board_name: string;
+  started_at: string;
+  finished_at: string | null;
+  status: ScrapeRunStatus;
+  fetched: number;
+  inserted: number;
+  rejected: number;
+  duplicates: number;
+  expired: number;
+  dry_run: boolean;
+  error: string | null;
+  notes: Record<string, unknown>;
+}
+
+export type RejectionReason = "title" | "location" | "excluded_company";
+
+/** A scraped posting the preference filters kept out of job_postings. */
+export interface ScrapeRejection {
+  id: string;
+  user_id: string;
+  board_id: string | null;
+  board_name: string;
+  url: string;
+  company: string | null;
+  title: string;
+  location: string | null;
+  salary_range: string | null;
+  reason: RejectionReason;
+  details: Record<string, unknown>;
+  first_seen_at: string;
+  last_seen_at: string;
+  times_seen: number;
 }
 
 /**

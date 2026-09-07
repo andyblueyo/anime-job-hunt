@@ -42,6 +42,11 @@ function writeManifest() {
 
 function copyStaticAssets() {
   cpSync(path.join(root, "icons"), path.join(dist, "icons"), { recursive: true });
+  // Bundled locally (no Google Fonts): a content script loading a remote font
+  // trips page CSP and gets flagged in store review. The lock overlay reaches
+  // them through chrome.runtime.getURL(), which is why manifest.template.json
+  // lists fonts/*.ttf under web_accessible_resources.
+  cpSync(path.join(root, "fonts"), path.join(dist, "fonts"), { recursive: true });
   for (const entry of ["popup", "options"]) {
     mkdirSync(path.join(dist, entry), { recursive: true });
     cpSync(

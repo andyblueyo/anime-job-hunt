@@ -1,7 +1,8 @@
 // MV3 service worker. The only place that holds the API token and the only
 // place that calls fetch() against the website — see messages.ts's header
 // for why. Also owns tab orchestration (opening job-posting tabs, injecting
-// the "Mark Applied" button into them) and the snooze re-lock alarm.
+// the capture ribbon into them, noticing when they close), the undo window on
+// ribbon decisions, and the snooze re-lock alarm.
 
 import {
   ApiError,
@@ -9,6 +10,8 @@ import {
   getExtensionConfig,
   getUnlockSession,
   markApplied,
+  requestReplacements,
+  skipPosting,
   snoozeUnlockSession,
   updateEpisodeRequiredCount,
 } from "./lib/api-client";
@@ -16,23 +19,48 @@ import type {
   BackgroundRequest,
   BackgroundResponseMap,
   ContentBroadcast,
+  Decision,
+  DecisionResponse,
   JobPosting,
+  SessionProgress,
   SessionState,
   TokenStatus,
+  TrackedPostingInfo,
 } from "./lib/messages";
 import { getQuote } from "./lib/quotes";
 import {
-  getJobPostingForTab,
+  addPendingConfirmation,
+  countTrackedForSession,
+  findTabsForPosting,
+  getPendingConfirmations,
+  getPendingDecisions,
   getStored,
-  removeTabJobPosting,
+  getTrackedTab,
+  removePendingConfirmation,
+  removeTrackedTab,
   setActiveSessionId,
   setAutoDetectEnabled,
-  setTabJobPosting,
+  setPendingDecision,
+  setPostingDecision,
   setToken,
+  setTrackedTab,
+  takePendingDecision,
 } from "./lib/storage";
 
 const REANIME_TAB_QUERY = "https://reanime.to/*";
 const SNOOZE_ALARM_PREFIX = "snooze:";
+
+/**
+ * How long a ribbon decision waits before being sent to the API. Lives here
+ * rather than in the ribbon's content script because (a) a full-width top bar
+ * is easy to mis-click, and (b) the tab is very likely to be closed right
+ * after clicking — a timer in the tab would die with it, which is exactly the
+ * moment it needs to survive.
+ */
+const UNDO_WINDOW_MS = 5000;
+
+/** Used when the config read fails at tab-close time (offline, bad token). */
+const DEFAULT_CLOSE_PROMPT_MIN_SECONDS = 90;
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -41,6 +69,10 @@ const SNOOZE_ALARM_PREFIX = "snooze:";
 async function requireToken(): Promise<string | null> {
   const { apiToken } = await getStored();
   return apiToken;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 /** Re-fetches a session's full state from the API. Returns null on any error
@@ -57,6 +89,24 @@ async function fetchFreshSessionState(
   }
 }
 
+/**
+ * The decision routes return the trimmed SessionProgress shape (no snooze
+ * fields — they never need them). Default those here rather than widening the
+ * API response just for a broadcast; the overlay's next poll gets the full
+ * picture.
+ */
+function progressToSessionState(progress: SessionProgress): SessionState {
+  return {
+    id: progress.id,
+    required_count: progress.required_count,
+    applied_count: progress.applied_count,
+    status: progress.status,
+    snooze_until: null,
+    snooze_count: 0,
+    outstanding_count: progress.outstanding_count,
+  };
+}
+
 async function broadcastToReanimeTabs(message: ContentBroadcast): Promise<void> {
   const tabs = await chrome.tabs.query({ url: REANIME_TAB_QUERY });
   await Promise.all(
@@ -71,7 +121,34 @@ async function broadcastToReanimeTabs(message: ContentBroadcast): Promise<void> 
   );
 }
 
-function injectMarkAppliedWhenReady(tabId: number): void {
+async function sendToPostingTabs(jobPostingId: string, message: ContentBroadcast): Promise<void> {
+  const tabIds = await findTabsForPosting(jobPostingId);
+  await Promise.all(
+    tabIds.map((tabId) =>
+      chrome.tabs.sendMessage(tabId, message).catch(() => {
+        // Tab closed or ribbon not injected — nothing to update.
+      }),
+    ),
+  );
+}
+
+/**
+ * Pushes a session's new state to the anime tabs: clears the lock if it just
+ * completed (and tidies the active-session pointer + snooze alarm), otherwise
+ * updates the overlay in place.
+ */
+async function publishSession(session: SessionState): Promise<void> {
+  if (session.status === "completed") {
+    const { activeSessionId } = await getStored();
+    if (activeSessionId === session.id) await setActiveSessionId(null);
+    chrome.alarms.clear(`${SNOOZE_ALARM_PREFIX}${session.id}`);
+    await broadcastToReanimeTabs({ type: "LOCK_CLEARED" });
+  } else {
+    await broadcastToReanimeTabs({ type: "SESSION_UPDATED", session });
+  }
+}
+
+function injectRibbonWhenReady(tabId: number): void {
   const listener = (updatedTabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
     if (updatedTabId !== tabId || changeInfo.status !== "complete") return;
     chrome.tabs.onUpdated.removeListener(listener);
@@ -79,13 +156,28 @@ function injectMarkAppliedWhenReady(tabId: number): void {
       .executeScript({ target: { tabId }, files: ["content/mark-applied.js"] })
       .catch(() => {
         // Some pages refuse injection (chrome://, PDFs, an extension
-        // gallery). Nothing to do but leave that tab without the button.
+        // gallery). Nothing to do but leave that tab without the ribbon —
+        // the closed-tab prompt still covers it.
       });
   };
   chrome.tabs.onUpdated.addListener(listener);
 }
 
-async function openPostingTabs(postings: JobPosting[]): Promise<void> {
+/**
+ * Opens one tab per posting and tracks the real (non-search-fallback) ones so
+ * the ribbon can name them and onRemoved can tell how long they were open.
+ * Returns how many tabs were actually opened.
+ */
+async function openPostingTabs(
+  postings: JobPosting[],
+  sessionId: string,
+  requiredCount: number,
+): Promise<number> {
+  // Positions continue from whatever's already open for this session, so a
+  // replacements batch reads "3 of 3", not "1 of 3" again.
+  let position = await countTrackedForSession(sessionId);
+  let opened = 0;
+
   for (const posting of postings) {
     let tab: chrome.tabs.Tab;
     try {
@@ -93,17 +185,235 @@ async function openPostingTabs(postings: JobPosting[]): Promise<void> {
     } catch {
       continue; // an individual bad URL shouldn't sink the rest of the batch
     }
+    opened++;
     if (!posting.isSearchFallback && posting.id && tab.id) {
-      await setTabJobPosting(tab.id, posting.id);
-      injectMarkAppliedWhenReady(tab.id);
+      position++;
+      await setTrackedTab(tab.id, {
+        jobPostingId: posting.id,
+        sessionId,
+        company: posting.company,
+        title: posting.title,
+        position,
+        total: requiredCount,
+        openedAt: Date.now(),
+        decision: null,
+      });
+      injectRibbonWhenReady(tab.id);
     }
   }
+  return opened;
 }
 
 function scheduleSnoozeAlarm(sessionId: string, snoozeUntil: string): void {
   chrome.alarms.create(`${SNOOZE_ALARM_PREFIX}${sessionId}`, {
     when: Date.parse(snoozeUntil),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Decisions — the API calls themselves
+// ---------------------------------------------------------------------------
+
+/** Writes the application and publishes the session's new state. */
+async function applyNow(token: string, jobPostingId: string): Promise<DecisionResponse> {
+  try {
+    const result = await markApplied(token, jobPostingId);
+    if (!result.session) return { ok: true, session: null };
+    const session = progressToSessionState(result.session);
+    await publishSession(session);
+    return { ok: true, session };
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
+}
+
+/** Returns the posting to the pool and publishes the session's new state. */
+async function skipNow(token: string, jobPostingId: string): Promise<DecisionResponse> {
+  try {
+    const result = await skipPosting(token, jobPostingId);
+    if (!result.session) return { ok: true, session: null };
+    const session = progressToSessionState(result.session);
+    await publishSession(session);
+    return { ok: true, session };
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Decisions — the undo window
+// ---------------------------------------------------------------------------
+
+// Timers are in-memory (a 5s setTimeout is well inside the worker's idle
+// grace), but the decisions themselves are persisted, and the startup block
+// at the bottom re-arms anything a restart interrupted.
+const commitTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function armCommitTimer(jobPostingId: string, delayMs: number): void {
+  cancelCommitTimer(jobPostingId);
+  const timer = setTimeout(() => {
+    commitTimers.delete(jobPostingId);
+    void commitDecision(jobPostingId);
+  }, Math.max(0, delayMs));
+  commitTimers.set(jobPostingId, timer);
+}
+
+function cancelCommitTimer(jobPostingId: string): void {
+  const timer = commitTimers.get(jobPostingId);
+  if (timer) clearTimeout(timer);
+  commitTimers.delete(jobPostingId);
+}
+
+/** Fires when the undo window closes: hit the API and tell the ribbon how it went. */
+async function commitDecision(jobPostingId: string): Promise<void> {
+  const pending = await takePendingDecision(jobPostingId);
+  if (!pending) return; // undone in the meantime
+
+  const token = await requireToken();
+  const result: DecisionResponse = token
+    ? pending.decision === "applied"
+      ? await applyNow(token, jobPostingId)
+      : await skipNow(token, jobPostingId)
+    : { ok: false, error: "No API token configured." };
+
+  if (!result.ok) {
+    // Let the tab fall back to "undecided" so closing it still prompts, and
+    // the ribbon can offer a retry. If the tab is already gone (the common
+    // case — people close right after clicking), the ribbon can't retry, so
+    // hand the question to the overlay's closed-tab prompt instead.
+    await setPostingDecision(jobPostingId, null);
+    const openTabs = await findTabsForPosting(jobPostingId);
+    if (openTabs.length === 0 && pending.sessionId) {
+      await addPendingConfirmation({
+        jobPostingId,
+        sessionId: pending.sessionId,
+        company: pending.company,
+        title: pending.title,
+        secondsOpen: Math.round((Date.now() - pending.openedAt) / 1000),
+        closedAt: Date.now(),
+      });
+    }
+  }
+
+  await sendToPostingTabs(jobPostingId, {
+    type: "DECISION_COMMITTED",
+    jobPostingId,
+    decision: pending.decision,
+    ok: result.ok,
+    error: result.ok ? undefined : result.error,
+    session: result.ok ? result.session : null,
+  });
+}
+
+/**
+ * Records a ribbon decision, starts its undo window, and answers with the
+ * *projected* session state so the ribbon can say "2 of 2 done" right away.
+ * Nothing reaches the API until commitDecision runs.
+ */
+async function deferDecision(
+  jobPostingId: string,
+  decision: Decision,
+  senderTabId: number | undefined,
+): Promise<DecisionResponse> {
+  const token = await requireToken();
+  if (!token) return { ok: false, error: "No API token configured." };
+
+  const tracked = senderTabId !== undefined ? await getTrackedTab(senderTabId) : null;
+  const sessionId = tracked?.sessionId ?? (await getStored()).activeSessionId;
+
+  await setPostingDecision(jobPostingId, decision);
+  await setPendingDecision({
+    jobPostingId,
+    sessionId,
+    decision,
+    commitAt: Date.now() + UNDO_WINDOW_MS,
+    company: tracked?.company ?? null,
+    title: tracked?.title ?? "Job posting",
+    openedAt: tracked?.openedAt ?? Date.now(),
+  });
+  armCommitTimer(jobPostingId, UNDO_WINDOW_MS);
+
+  const fresh = sessionId ? await fetchFreshSessionState(token, sessionId) : null;
+  if (!fresh) return { ok: true, session: null };
+
+  const outstanding = Math.max(0, (fresh.outstanding_count ?? 1) - 1);
+  const applied = decision === "applied" ? fresh.applied_count + 1 : fresh.applied_count;
+  return {
+    ok: true,
+    session: {
+      ...fresh,
+      applied_count: applied,
+      outstanding_count: outstanding,
+      status: applied >= fresh.required_count ? "completed" : fresh.status,
+    },
+  };
+}
+
+async function handleUndo(jobPostingId: string): Promise<BackgroundResponseMap["UNDO_DECISION"]> {
+  cancelCommitTimer(jobPostingId);
+  await takePendingDecision(jobPostingId);
+  await setPostingDecision(jobPostingId, null);
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Closed-tab confirmations
+// ---------------------------------------------------------------------------
+
+async function getClosePromptMinSeconds(token: string): Promise<number> {
+  try {
+    const config = await getExtensionConfig(token);
+    return config.close_prompt_min_seconds;
+  } catch {
+    return DEFAULT_CLOSE_PROMPT_MIN_SECONDS;
+  }
+}
+
+async function handleTabRemoved(tabId: number): Promise<void> {
+  const tracked = await removeTrackedTab(tabId);
+  if (!tracked) return;
+  if (tracked.decision) return; // the ribbon already has an answer
+
+  const token = await requireToken();
+  if (!token) return;
+
+  const secondsOpen = Math.round((Date.now() - tracked.openedAt) / 1000);
+  const minSeconds = await getClosePromptMinSeconds(token);
+  // A tab closed in eleven seconds wasn't an application; asking anyway is
+  // how you train someone to dismiss the prompt reflexively.
+  if (secondsOpen < minSeconds) return;
+
+  await addPendingConfirmation({
+    jobPostingId: tracked.jobPostingId,
+    sessionId: tracked.sessionId,
+    company: tracked.company,
+    title: tracked.title,
+    secondsOpen,
+    closedAt: Date.now(),
+  });
+}
+
+/**
+ * The overlay's "I applied" / "I didn't". Immediate — there's no ribbon left
+ * to undo from. The entry leaves the pending list on success, and also on a
+ * definitive rejection (posting gone, or already applied via /queue) since
+ * re-asking can't change that answer; a network failure keeps it for retry.
+ */
+async function handleResolvePending(
+  jobPostingId: string,
+  applied: boolean,
+): Promise<BackgroundResponseMap["RESOLVE_PENDING"]> {
+  const token = await requireToken();
+  if (!token) return { ok: false, error: "No API token configured." };
+
+  const result = applied
+    ? await applyNow(token, jobPostingId)
+    : await skipNow(token, jobPostingId);
+
+  const definitive = result.ok || /not found|already/i.test(result.error);
+  if (definitive) await removePendingConfirmation(jobPostingId);
+
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -128,9 +438,10 @@ async function handleTrigger(): Promise<BackgroundResponseMap["TRIGGER_EPISODE_E
       status: "locked",
       snooze_until: null,
       snooze_count: 0,
+      outstanding_count: result.postings.filter((p) => !p.isSearchFallback).length,
     };
     await setActiveSessionId(session.id);
-    await openPostingTabs(result.postings);
+    await openPostingTabs(result.postings, session.id, session.required_count);
     await broadcastToReanimeTabs({ type: "LOCK_ACTIVE", session });
     return { ok: true, session, postings: result.postings };
   } catch (error) {
@@ -144,7 +455,7 @@ async function handleTrigger(): Promise<BackgroundResponseMap["TRIGGER_EPISODE_E
       }
       return { ok: false, error: error.message, rateLimited: true, session: existing };
     }
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    return { ok: false, error: errorMessage(error) };
   }
 }
 
@@ -178,7 +489,7 @@ async function handleSnooze(
     await broadcastToReanimeTabs({ type: "LOCK_CLEARED" });
     return { ok: true, session: fresh };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    return { ok: false, error: errorMessage(error) };
   }
 }
 
@@ -197,40 +508,18 @@ async function handlePoll(sessionId: string): Promise<BackgroundResponseMap["POL
   return { ok: true, session: fresh };
 }
 
-async function handleMarkApplied(
-  jobPostingId: string,
-): Promise<BackgroundResponseMap["MARK_APPLIED"]> {
+async function handleRequestReplacements(
+  sessionId: string,
+): Promise<BackgroundResponseMap["REQUEST_REPLACEMENTS"]> {
   const token = await requireToken();
   if (!token) return { ok: false, error: "No API token configured." };
 
   try {
-    const result = await markApplied(token, jobPostingId);
-    if (!result.session) return { ok: true, session: null };
-
-    // The mark-applied route's session shape omits snooze fields (it never
-    // needs them) — default them here rather than widening the API response
-    // just for this broadcast; the overlay's next poll gets the full picture.
-    const session: SessionState = {
-      id: result.session.id,
-      required_count: result.session.required_count,
-      applied_count: result.session.applied_count,
-      status: result.session.status,
-      snooze_until: null,
-      snooze_count: 0,
-    };
-
-    if (session.status === "completed") {
-      const { activeSessionId } = await getStored();
-      if (activeSessionId === session.id) await setActiveSessionId(null);
-      chrome.alarms.clear(`${SNOOZE_ALARM_PREFIX}${session.id}`);
-      await broadcastToReanimeTabs({ type: "LOCK_CLEARED" });
-    } else {
-      await broadcastToReanimeTabs({ type: "SESSION_UPDATED", session });
-    }
-
-    return { ok: true, session };
+    const result = await requestReplacements(token, sessionId);
+    const opened = await openPostingTabs(result.postings, sessionId, result.required_count);
+    return { ok: true, opened };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    return { ok: false, error: errorMessage(error) };
   }
 }
 
@@ -246,7 +535,7 @@ async function handleGetConfig(): Promise<BackgroundResponseMap["GET_CONFIG"]> {
   try {
     return { ok: true, config: await getExtensionConfig(token) };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    return { ok: false, error: errorMessage(error) };
   }
 }
 
@@ -261,7 +550,7 @@ async function handleSetEpisodeRequiredCount(
     // server's answer rather than assuming the write took the value it sent.
     return { ok: true, config: await updateEpisodeRequiredCount(token, count) };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    return { ok: false, error: errorMessage(error) };
   }
 }
 
@@ -278,13 +567,28 @@ async function handleCheckToken(): Promise<TokenStatus> {
     const config = await getExtensionConfig(token);
     return { hasToken: true, valid: true, config, error: null };
   } catch (error) {
-    return {
-      hasToken: true,
-      valid: false,
-      config: null,
-      error: error instanceof Error ? error.message : String(error),
-    };
+    return { hasToken: true, valid: false, config: null, error: errorMessage(error) };
   }
+}
+
+async function handleGetMyPosting(
+  tabId: number | undefined,
+): Promise<BackgroundResponseMap["GET_MY_JOB_POSTING_ID"]> {
+  const tracked = tabId !== undefined ? await getTrackedTab(tabId) : null;
+  if (!tracked) return { jobPostingId: null, posting: null };
+
+  const pending = (await getPendingDecisions())[tracked.jobPostingId];
+  const posting: TrackedPostingInfo = {
+    jobPostingId: tracked.jobPostingId,
+    sessionId: tracked.sessionId,
+    company: tracked.company,
+    title: tracked.title,
+    position: tracked.position,
+    total: tracked.total,
+    decision: tracked.decision,
+    undoAvailable: Boolean(pending),
+  };
+  return { jobPostingId: tracked.jobPostingId, posting };
 }
 
 type AnyResponse = BackgroundResponseMap[keyof BackgroundResponseMap] | { error: string };
@@ -306,7 +610,17 @@ async function handleMessage(
     case "POLL_SESSION":
       return handlePoll(message.sessionId);
     case "MARK_APPLIED":
-      return handleMarkApplied(message.jobPostingId);
+      return deferDecision(message.jobPostingId, "applied", sender.tab?.id);
+    case "SKIP_POSTING":
+      return deferDecision(message.jobPostingId, "skipped", sender.tab?.id);
+    case "UNDO_DECISION":
+      return handleUndo(message.jobPostingId);
+    case "GET_PENDING_CONFIRMATIONS":
+      return { pending: await getPendingConfirmations() };
+    case "RESOLVE_PENDING":
+      return handleResolvePending(message.jobPostingId, message.applied);
+    case "REQUEST_REPLACEMENTS":
+      return handleRequestReplacements(message.sessionId);
     case "SAVE_TOKEN":
       return handleSaveToken(message.token);
     case "CHECK_TOKEN":
@@ -317,11 +631,8 @@ async function handleMessage(
       return handleGetConfig();
     case "SET_EPISODE_REQUIRED_COUNT":
       return handleSetEpisodeRequiredCount(message.count);
-    case "GET_MY_JOB_POSTING_ID": {
-      const tabId = sender.tab?.id;
-      const jobPostingId = tabId !== undefined ? await getJobPostingForTab(tabId) : null;
-      return { jobPostingId };
-    }
+    case "GET_MY_JOB_POSTING_ID":
+      return handleGetMyPosting(sender.tab?.id);
     default:
       return { error: `Unknown message type: ${(message as { type: string }).type}` };
   }
@@ -330,9 +641,7 @@ async function handleMessage(
 chrome.runtime.onMessage.addListener((message: BackgroundRequest, sender, sendResponse) => {
   handleMessage(message, sender)
     .then(sendResponse)
-    .catch((error) =>
-      sendResponse({ error: error instanceof Error ? error.message : String(error) }),
-    );
+    .catch((error) => sendResponse({ error: errorMessage(error) }));
   return true; // keep the message channel open for the async response above
 });
 
@@ -357,7 +666,19 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   await broadcastToReanimeTabs({ type: "LOCK_ACTIVE", session });
 });
 
-// Cleans up the tab->job-posting map as opened tabs get closed.
+// A tracked job tab closing is the moment to decide whether to ask about it.
 chrome.tabs.onRemoved.addListener((tabId) => {
-  removeTabJobPosting(tabId).catch(() => {});
+  handleTabRemoved(tabId).catch(() => {});
 });
+
+// ---------------------------------------------------------------------------
+// Startup: the worker may have been torn down with decisions still inside
+// their undo window. Re-arm them (commitAt in the past → commit now).
+// ---------------------------------------------------------------------------
+
+void (async () => {
+  const pending = await getPendingDecisions();
+  for (const decision of Object.values(pending)) {
+    armCommitTimer(decision.jobPostingId, decision.commitAt - Date.now());
+  }
+})();

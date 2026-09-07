@@ -346,12 +346,17 @@ button {
   color: var(--ink);
 }
 
-.pill-spot {
+/* .pill-danger is the destructive action (delete); same crimson treatment
+   as .pill-spot, named for intent so a row's "spot" accent and a delete
+   confirm don't drift apart by accident. */
+.pill-spot,
+.pill-danger {
   border-color: var(--spot);
   color: var(--spot);
 }
 
-.pill-spot:not(:disabled):hover {
+.pill-spot:not(:disabled):hover,
+.pill-danger:not(:disabled):hover {
   background: var(--spot);
   color: var(--paper);
 }
@@ -359,6 +364,24 @@ button {
 .pill-sm {
   font-size: 11px;
   padding: 7px 12px;
+}
+
+/* Modal ---------------------------------------------------------------------
+   Native <dialog>, restyled as a card: browser chrome off, hairline border,
+   paper surface, ink-tinted backdrop. */
+
+.dialog {
+  margin: auto; /* preflight zeroes margins; this is what centers a modal <dialog> */
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 0;
+  max-width: min(28rem, calc(100vw - 2rem));
+  width: 100%;
+}
+
+.dialog::backdrop {
+  background: rgba(26, 26, 24, 0.55);
 }
 
 /* Status chip -------------------------------------------------------------- */

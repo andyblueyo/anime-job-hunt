@@ -204,6 +204,23 @@ export async function reopenPosting(formData: FormData): Promise<void> {
   refresh();
 }
 
+/**
+ * Hard-delete a posting. Cascades to its `applications` row by FK (so no
+ * manual cleanup, unlike reopenPosting where the posting survives). Never
+ * completes a session — deleting can't add an application — and a session
+ * mid-lock recomputes its outstanding pool on the next progress poll, with the
+ * replacements route covering the shortfall. Frees the URL for re-adding.
+ */
+export async function deletePosting(formData: FormData): Promise<void> {
+  const id = requirePostingId(formData);
+  const db = await getDb();
+
+  const { error } = await db.from("job_postings").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+
+  refresh();
+}
+
 // ---------------------------------------------------------------------------
 // Phase 3: job-search preferences + scraper
 // ---------------------------------------------------------------------------

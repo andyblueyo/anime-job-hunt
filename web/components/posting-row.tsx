@@ -1,4 +1,5 @@
 import { markApplied, queuePosting, reopenPosting, skipPosting } from "@/app/actions";
+import { DeletePostingButton } from "@/components/delete-posting-button";
 import { SubmitPill } from "@/components/submit-pill";
 import { StatusBadge, formatDate } from "@/components/ui";
 import type { JobPostingWithApplication } from "@/lib/types";
@@ -114,6 +115,13 @@ export function PostingRow({
             Reopen
           </ActionForm>
         )}
+
+        <DeletePostingButton
+          id={posting.id}
+          company={posting.company}
+          title={posting.title}
+          hasApplication={Boolean(application)}
+        />
       </div>
     </li>
   );
